@@ -51,7 +51,7 @@
         <SanitizedProjectName>SuspendTool</SanitizedProjectName>
         <DCC_UnitSearchPath>.\NtUtils;.\NtUtils\Headers;$(DCC_UnitSearchPath)</DCC_UnitSearchPath>
         <VerInfo_Locale>1033</VerInfo_Locale>
-        <VerInfo_Keys>CompanyName=;FileDescription=A tool for suspending processes.;FileVersion=1.0.0.0;InternalName=;LegalCopyright=diversenok;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
+        <VerInfo_Keys>CompanyName=diversenok;FileDescription=A tool for suspending processes.;FileVersion=1.0.0.0;InternalName=;LegalCopyright=diversenok;LegalTrademarks=;OriginalFilename=;ProgramID=com.embarcadero.$(MSBuildProjectName);ProductName=$(MSBuildProjectName);ProductVersion=1.0.0.0;Comments=</VerInfo_Keys>
         <DCC_TypedAtParameter>true</DCC_TypedAtParameter>
         <DCC_MapFile>3</DCC_MapFile>
         <VerInfo_IncludeVerInfo>true</VerInfo_IncludeVerInfo>

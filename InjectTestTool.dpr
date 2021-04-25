@@ -1,6 +1,7 @@
 program InjectTestTool;
 
 {$APPTYPE CONSOLE}
+{$R *.res}
 
 uses
   Winapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntpsapi, NtUtils,
