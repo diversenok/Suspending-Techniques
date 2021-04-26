@@ -12,16 +12,25 @@ uses
   Winapi.WinNt, Ntapi.ntpsapi, NtUtils, NtUtils.SysUtils, NtUtils.Threads,
   NtUtils.Threads.Worker, NtUtils.Synchronization, NtUiLib.Errors;
 
+var
+  hxWorkerFactory: IHandle;
+  Count: Cardinal = 0;
+
 procedure ThreadPoolMain(Context: Pointer); stdcall;
+var
+  Name: String;
 begin
-  writeln('Hello from a thread pool''s thread!');
-  NtxSetNameThread(NtCurrentThread, 'Thread Pool''s thread');
+  Inc(Count);
+  Name := 'thread pool''s thread #' + RtlxIntToStr(Count);
+  writeln('Hello from ', Name);
+  NtxSetNameThread(NtCurrentThread, Name);
+  NtxWorkerFactoryWorkerReady(hxWorkerFactory.Handle);
   NtxDelayExecution(NT_INFINITE)
 end;
 
 function Main: TNtxStatus;
 var
-  hxIoCompletion, hxWorkerFactory: IHandle;
+  hxIoCompletion: IHandle;
 begin
   writeln('This is a sample application with a thread pool.');
 
