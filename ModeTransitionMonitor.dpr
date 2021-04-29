@@ -9,10 +9,11 @@ program ModeTransitionMonitor;
 {$R *.res}
 
 uses
-  Winapi.WinNt, Ntapi.ntstatus, DelphiUtils.AutoObject, NtUtils,
-  NtUtils.SysUtils, NtUtils.Processes, NtUtils.Processes.Snapshots,
-  NtUtils.Processes.Query, NtUtils.Processes.Query.Remote,
-  NtUtils.Shellcode, NtUtils.Synchronization, NtUiLib.Errors;
+  Winapi.WinNt, Ntapi.ntstatus, Ntapi.ntpsapi, Ntapi.ntseapi, NtUtils,
+  DelphiUtils.AutoObject, NtUtils.SysUtils, NtUtils.Processes,
+  NtUtils.Processes.Snapshots, NtUtils.Processes.Query,
+  NtUtils.Processes.Query.Remote, NtUtils.Tokens, NtUtils.Shellcode,
+  NtUtils.Synchronization, NtUiLib.Errors;
 
 {
   The idea is the following:
@@ -20,10 +21,10 @@ uses
   1. Map a shared memory region with the target
   2. Write a small shellcode to it that counts the number of times it is called
      into a variable within the same memory region
-  3. Install this shellcode as the instrumentation callback (requires
-     temporarily injecting another piece of code to avoid the requirement for
-     the Debug Privilege). This will make sure every time Windows returns
-     from a system call, it will invoke our callback.
+  3. Install it as the instrumentation callback (by either setting it
+     directly if we have the Debug privilege, or injecting yet another piece of
+     code to do it on the target's behalf). This will make sure every time
+     Windows returns from a system call, it will invoke our callback.
   4. Pull the counter via a local memory mapping.
 }
 
@@ -38,17 +39,47 @@ type
   end;
   PSyscallCountMonitor = ^TSyscallCountMonitor;
 
-// Installs an instrumentation callback in the target process that counts
-// kernel-to-user mode transitions.
-function InstallInstrumentation(
-  const hxProcess: IHandle;
-  out LocalMapping: IMemory<PSyscallCountMonitor>;
-  const Timeout: Int64 = DEFAULT_REMOTE_TIMEOUT
-): TNtxStatus;
+function Main: TNtxStatus;
+const
+  AccessMask = PROCESS_VM_OPERATION or PROCESS_SET_INFORMATION or
+    PROCESS_SET_INSTRUMENTATION or SYNCHRONIZE;
 var
-  TargetIsWoW64: Boolean;
+  ProcessName: String;
+  PID: Cardinal;
+  hxProcess: IHandle;
+  LocalMapping: IMemory<PSyscallCountMonitor>;
   RemoteMapping: IMemory;
+  HasDebugPrivilege, TargetIsWoW64, IsIdle: Boolean;
+  SyscallCount: UInt64;
 begin
+  writeln('This is a program for monitoring transitions from kernel mode to '
+    + 'user mode that happen in a context of a specific process.');
+  writeln;
+
+  // Try enabling the debug privilege since we can set the instrumentation
+  // callback directly in this case.
+  Result := NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+    SE_PRIVILEGE_ENABLED, True);
+
+  if not Result.IsSuccess then
+    Exit;
+
+  HasDebugPrivilege := Result.Status <> STATUS_NOT_ALL_ASSIGNED;
+
+  write('Target''s PID or a unique image name: ');
+  readln(ProcessName);
+  writeln;
+
+  // Open the target
+  if RtlxStrToInt(ProcessName, PID) then
+    Result := NtxOpenProcess(hxProcess, PID, AccessMask)
+  else
+    Result := NtxOpenProcessByName(hxProcess, ProcessName, AccessMask);
+
+  if not Result.IsSuccess then
+    Exit;
+
+  // Instrumentation callbacks do not work under WoW64
   Result := NtxQueryIsWoW64Process(hxProcess.Handle, TargetIsWoW64);
 
   if not Result.IsSuccess then
@@ -61,7 +92,7 @@ begin
     Exit;
   end;
 
-  // Map a shares memory region for the shellcode and the syscall counter
+  // Map a shared memory region for the shellcode and the syscall counter
   Result := RtlxMapSharedMemory(hxProcess, SizeOf(TSyscallCountMonitor),
     IMemory(LocalMapping), RemoteMapping, [mmAllowWrite, mmAllowExecute]);
 
@@ -72,55 +103,34 @@ begin
   LocalMapping.Data.Code[0] := $410000000905FF90;
   LocalMapping.Data.Code[1] := $CCCCCCCCCCCCE2FF;
 
-  // Inject yet another shellcode for setting instrumentation callback without
-  // requiring the Debug Privilege
-  Result := NtxSetInstrumentationProcess(hxProcess, RemoteMapping.Data,
-    Timeout);
+  writeln('Enabling instrumentation callback...');
 
-  // Make sure we don't unmap the callback from the target
-  if Result.IsSuccess then
-    RemoteMapping.AutoRelease := False;
-end;
-
-function Main: TNtxStatus;
-const
-  AccessMask = PROCESS_SET_INSTRUMENTATION or SYNCHRONIZE;
-var
-  ProcessName: String;
-  PID: Cardinal;
-  hxProcess: IHandle;
-  LocalMapping: IMemory<PSyscallCountMonitor>;
-  Count: UInt64;
-  IsIdle: Boolean;
-begin
-  writeln('This is a program for monitoring transitions from kernel mode to user mode that happen in a context of a specific process.');
-  writeln;
-  write('Target''s PID or a unique image name: ');
-  readln(ProcessName);
-  writeln;
-
-  if RtlxStrToInt(ProcessName, PID) then
-    Result := NtxOpenProcess(hxProcess, PID, AccessMask)
+  if HasDebugPrivilege then
+    // Either set it directly
+    Result := NtxProcess.Set(hxProcess.Handle, ProcessInstrumentationCallback,
+      TProcessInstrumentationCallback(RemoteMapping.Data))
   else
-    Result := NtxOpenProcessByName(hxProcess, ProcessName, AccessMask);
+    // Or inject the code that does it on the target's behalf
+    Result := NtxSetInstrumentationProcess(hxProcess, RemoteMapping.Data,
+      NT_INFINITE);
 
   if not Result.IsSuccess then
     Exit;
 
-  Result := InstallInstrumentation(hxProcess, LocalMapping);
+  // Make sure we don't unmap the callback when we exit
+  RemoteMapping.AutoRelease := False;
 
-  if not Result.IsSuccess then
-    Exit;
-
+  writeln('Staring monitoring...');
+  writeln;
   IsIdle := False;
 
   repeat
-    Count := AtomicExchange(LocalMapping.Data.SyscallCount, 0);
+    SyscallCount := AtomicExchange(LocalMapping.Data.SyscallCount, 0);
 
-    if (Count > 0) or not IsIdle then
-      writeln('Transitions / second: ', Count);
+    if (SyscallCount > 0) or not IsIdle then
+      writeln('Transitions / second: ', SyscallCount);
 
-    IsIdle := (Count = 0);
+    IsIdle := (SyscallCount = 0);
 
     Result := NtxWaitForSingleObject(hxProcess.Handle, 1000 * MILLISEC);
   until Result.Status <> STATUS_TIMEOUT;
