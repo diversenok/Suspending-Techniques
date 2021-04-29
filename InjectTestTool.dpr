@@ -7,6 +7,7 @@ program InjectTestTool;
 }
 
 {$APPTYPE CONSOLE}
+{$MINENUMSIZE 4}
 {$R *.res}
 
 uses
@@ -16,8 +17,15 @@ uses
   NtUtils.Synchronization, NtUiLib.Errors,
   InjectViaThreadPool in 'InjectViaThreadPool.pas';
 
+type
+  TInjectionAction = (
+    iaInjectThread,
+    iaInjectStealtyThread,
+    iaTriggerThreadPool
+  );
+
 // Methods #0 and #1
-function InjectThread(hProcess: THandle; Action: Cardinal): TNtxStatus;
+function InjectThread(hProcess: THandle; Action: TInjectionAction): TNtxStatus;
 var
   ThreadFlags: TThreadCreateFlags;
   ThreadMain: Pointer;
@@ -45,11 +53,11 @@ begin
     ThreadParam := Cardinal(ThreadParam);
 {$ENDIF}
 
-  case Action of
-    1: ThreadFlags := THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH;
+  if Action = iaInjectStealtyThread then
+    ThreadFlags := THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH or
+      THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER
   else
     ThreadFlags := 0;
-  end;
 
   Result := NtxCreateThread(hxThread, hProcess, ThreadMain,
     Pointer(ThreadParam), ThreadFlags);
@@ -68,29 +76,35 @@ begin
     Result := NtxWaitForSingleObject(hxThread.Handle, 2000 * MILLISEC);
   until Result.Status <> STATUS_TIMEOUT;
 
+  writeln;
+
   if Result.Status = STATUS_WAIT_0 then
-    writeln('Wait completed, thread executed.');
+    writeln('Wait completed, thread exited.');
 end;
 
 function Main: TNtxStatus;
 var
   hxProcess: IHandle;
   ProcessName: String;
-  Action, PID: Cardinal;
+  PID: Cardinal;
+  Action: TInjectionAction;
   AccessMask: TProcessAccessMask;
 begin
   writeln('This is a program for testing thread creation. Available options:');
-  writeln('[0] Create a thread');
-  writeln('[1] Create a thread without attaching to DLLs');
-  writeln('[2] Trigger thread pool''s thread creation');
+  writeln('[', Integer(iaInjectThread) ,'] Create a thread');
+  writeln('[', Integer(iaInjectStealtyThread) ,'] Create a thread (no attaching to DLLs & notifiying debuggers)');
+  writeln('[', Integer(iaTriggerThreadPool) ,'] Trigger thread pool''s thread creation');
   writeln;
   write('Your choice: ');
-  readln(Action);
+  readln(Cardinal(Action));
   writeln;
 
   case Action of
-    0, 1: AccessMask := PROCESS_CREATE_THREAD or PROCESS_QUERY_LIMITED_INFORMATION;
-    2: AccessMask := PROCESS_DUP_HANDLE or PROCESS_QUERY_INFORMATION;
+    iaInjectThread, iaInjectStealtyThread:
+      AccessMask := PROCESS_CREATE_THREAD or PROCESS_QUERY_LIMITED_INFORMATION;
+
+    iaTriggerThreadPool:
+      AccessMask := PROCESS_DUP_HANDLE or PROCESS_QUERY_INFORMATION;
   else
     Result.Location := 'Main';
     Result.Status := STATUS_INVALID_PARAMETER;
@@ -110,8 +124,11 @@ begin
     Exit;
 
   case Action of
-    0, 1: Result := InjectThread(hxProcess.Handle, Action);
-    2: Result := TriggerThreadPool(hxProcess.Handle);
+    iaInjectThread, iaInjectStealtyThread:
+      Result := InjectThread(hxProcess.Handle, Action);
+
+    iaTriggerThreadPool:
+      Result := TriggerThreadPool(hxProcess.Handle);
   end;
 end;
 
