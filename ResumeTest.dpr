@@ -10,7 +10,8 @@ program ResumeTest;
 
 uses
   Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntpsapi, NtUtils, NtUtils.Threads,
-  NtUtils.SysUtils, NtUtils.Synchronization, NtUiLib.Errors;
+  NtUtils.SysUtils, NtUtils.Synchronization, NtUtils.Processes.Query,
+  NtUiLib.Errors;
 
 var
   AllThreads: TArray<IHandle>;
@@ -94,5 +95,8 @@ end;
 
 begin
   ReportFailures(Main);
+
+  if RtlxConsoleHostState <> chInterited then
+    readln;
 end.
 

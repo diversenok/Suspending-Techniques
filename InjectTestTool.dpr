@@ -125,5 +125,7 @@ end;
 
 begin
   ReportFailures(Main);
-  {$IFDEF Debug}readln;{$ENDIF}
+
+  if RtlxConsoleHostState <> chInterited then
+    readln;
 end.

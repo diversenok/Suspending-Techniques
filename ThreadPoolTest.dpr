@@ -10,7 +10,8 @@ program ThreadPoolTest;
 
 uses
   Winapi.WinNt, Ntapi.ntpsapi, NtUtils, NtUtils.SysUtils, NtUtils.Threads,
-  NtUtils.Threads.Worker, NtUtils.Synchronization, NtUiLib.Errors;
+  NtUtils.Threads.Worker, NtUtils.Synchronization, NtUtils.Processes.Query,
+  NtUiLib.Errors;
 
 var
   hxWorkerFactory: IHandle;
@@ -62,4 +63,7 @@ end;
 
 begin
   ReportFailures(Main);
+
+  if RtlxConsoleHostState <> chInterited then
+    readln;
 end.

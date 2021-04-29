@@ -10,7 +10,7 @@ program SuspendTool;
 uses
   Winapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntpsapi, NtUtils,
   NtUtils.Ldr, NtUtils.Processes, NtUtils.Processes.Snapshots, NtUtils.Debug,
-  NtUtils.Job, NtUtils.SysUtils, NtUiLib.Errors;
+  NtUtils.Job, NtUtils.Processes.Query, NtUtils.SysUtils, NtUiLib.Errors;
 
 function Main: TNtxStatus;
 var
@@ -136,6 +136,8 @@ end;
 
 begin
   ReportFailures(Main);
-  {$IFDEF Debug}readln;{$ENDIF}
+
+  if RtlxConsoleHostState <> chInterited then
+    readln;
 end.
 
