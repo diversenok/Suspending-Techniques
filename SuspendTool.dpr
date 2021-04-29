@@ -11,20 +11,22 @@ program SuspendTool;
 uses
   Winapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntpsapi, NtUtils,
   NtUtils.Ldr, NtUtils.Processes, NtUtils.Processes.Snapshots, NtUtils.Debug,
-  NtUtils.Job, NtUtils.Processes.Query, NtUtils.SysUtils, NtUiLib.Errors;
+  NtUtils.Job, NtUtils.Processes.Query, NtUtils.Threads, NtUtils.SysUtils,
+  NtUiLib.Errors;
 
 type
   TSuspendAction = (
     saSuspendProcess,
     saResumeProcess,
     saFreezeViaDebug,
+    saFreezeViaDebugInject,
     saFreezeViaJob,
     saFreezeViaState
   );
 
 function Main: TNtxStatus;
 var
-  hxProcess, hxDbg, hxJob, hxProcessState: IHandle;
+  hxProcess, hxThread, hxDbg, hxJob, hxProcessState: IHandle;
   AccessMask: TProcessAccessMask;
   ProcessName: String;
   Action: TSuspendAction;
@@ -36,6 +38,7 @@ begin
   writeln('[', Integer(saSuspendProcess), '] Suspend via NtSuspendProcess');
   writeln('[', Integer(saResumeProcess), '] Resume via NtResumeProcess');
   writeln('[', Integer(saFreezeViaDebug), '] Freeze via a debug object');
+  writeln('[', Integer(saFreezeViaDebugInject), '] Freeze via a debug object (with thread injection)');
   writeln('[', Integer(saFreezeViaJob), '] Freeze via a job object');
   writeln('[', Integer(saFreezeViaState), '] Suspend via a state change object');
   writeln;
@@ -46,6 +49,9 @@ begin
   case Action of
     saSuspendProcess, saResumeProcess, saFreezeViaDebug:
       AccessMask := PROCESS_SUSPEND_RESUME;
+
+    saFreezeViaDebugInject:
+      AccessMask := PROCESS_SUSPEND_RESUME or PROCESS_CREATE_THREAD;
 
     saFreezeViaJob:
       AccessMask := PROCESS_ASSIGN_TO_JOB;
@@ -77,7 +83,7 @@ begin
     saResumeProcess:
       Result := NtxResumeProcess(hxProcess.Handle);
 
-    saFreezeViaDebug:
+    saFreezeViaDebug, saFreezeViaDebugInject:
       begin
         Result := NtxCreateDebugObject(hxDbg);
 
@@ -88,6 +94,23 @@ begin
 
         if not Result.IsSuccess then
           Exit;
+
+        // Injecting a thread causes the system to freeze other threads
+        if Action = saFreezeViaDebugInject then
+        begin
+          // No need to specify a valid start address since it will never run
+          Result := NtxCreateThread(hxThread, hxProcess.Handle, nil, nil,
+            THREAD_CREATE_FLAGS_CREATE_SUSPENDED);
+
+          if not Result.IsSuccess then
+            Exit;
+
+          NtxSetNameThread(hxThread.Handle, 'Injected helper thread');
+          Result := NtxTerminateThread(hxThread.Handle, DBG_TERMINATE_THREAD);
+
+          if not Result.IsSuccess then
+            Exit;
+        end;
 
         write('The process was frozen via a debug object. Press enter to undo...');
         readln;
