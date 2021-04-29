@@ -5,6 +5,7 @@ program SuspendTool;
 }
 
 {$APPTYPE CONSOLE}
+{$MINENUMSIZE 4}
 {$R *.res}
 
 uses
@@ -12,32 +13,45 @@ uses
   NtUtils.Ldr, NtUtils.Processes, NtUtils.Processes.Snapshots, NtUtils.Debug,
   NtUtils.Job, NtUtils.Processes.Query, NtUtils.SysUtils, NtUiLib.Errors;
 
+type
+  TSuspendAction = (
+    saSuspendProcess,
+    saResumeProcess,
+    saFreezeViaDebug,
+    saFreezeViaJob,
+    saFreezeViaState
+  );
+
 function Main: TNtxStatus;
 var
   hxProcess, hxDbg, hxJob, hxProcessState: IHandle;
   AccessMask: TProcessAccessMask;
-  ActionStr, ProcessName: String;
-  Action, PID: Cardinal;
+  ProcessName: String;
+  Action: TSuspendAction;
+  PID: Cardinal;
   JobInfo: TJobObjectFreezeInformation;
 begin
   writeln('Available options:');
-  writeln('[0] Suspend via NtSuspendProcess');
-  writeln('[1] Resume via NtResumeProcess');
-  writeln('[2] Freeze via a debug object');
-  writeln('[3] Freeze via a job object');
-  writeln('[4] Suspend via a state change object');
+  writeln;
+  writeln('[', Integer(saSuspendProcess), '] Suspend via NtSuspendProcess');
+  writeln('[', Integer(saResumeProcess), '] Resume via NtResumeProcess');
+  writeln('[', Integer(saFreezeViaDebug), '] Freeze via a debug object');
+  writeln('[', Integer(saFreezeViaJob), '] Freeze via a job object');
+  writeln('[', Integer(saFreezeViaState), '] Suspend via a state change object');
   writeln;
   write('Your choice: ');
-  readln(ActionStr);
+  readln(Cardinal(Action));
   writeln;
 
-  if not RtlxStrToInt(ActionStr, Action) then
-    Integer(Action) := -1;
-
   case Action of
-    0, 1, 2: AccessMask := PROCESS_SUSPEND_RESUME;
-    3: AccessMask := PROCESS_ASSIGN_TO_JOB;
-    4: AccessMask := PROCESS_CHANGE_STATE;
+    saSuspendProcess, saResumeProcess, saFreezeViaDebug:
+      AccessMask := PROCESS_SUSPEND_RESUME;
+
+    saFreezeViaJob:
+      AccessMask := PROCESS_ASSIGN_TO_JOB;
+
+    saFreezeViaState:
+      AccessMask := PROCESS_CHANGE_STATE;
   else
     Result.Location := 'Main';
     Result.Status := STATUS_INVALID_PARAMETER;
@@ -57,72 +71,78 @@ begin
     Exit;
 
   case Action of
-    0: Result := NtxSuspendProcess(hxProcess.Handle);
-    1: Result := NtxResumeProcess(hxProcess.Handle);
-    2:
-    begin
-      Result := NtxCreateDebugObject(hxDbg);
+    saSuspendProcess:
+      Result := NtxSuspendProcess(hxProcess.Handle);
 
-      if not Result.IsSuccess then
-        Exit;
+    saResumeProcess:
+      Result := NtxResumeProcess(hxProcess.Handle);
 
-      Result := NtxDebugProcess(hxProcess.Handle, hxDbg.Handle);
+    saFreezeViaDebug:
+      begin
+        Result := NtxCreateDebugObject(hxDbg);
 
-      if not Result.IsSuccess then
-        Exit;
+        if not Result.IsSuccess then
+          Exit;
 
-      write('The process was frozen via a debug object. Press enter to undo...');
-      readln;
+        Result := NtxDebugProcess(hxProcess.Handle, hxDbg.Handle);
 
-      Result := NtxDebugProcessStop(hxProcess.Handle, hxDbg.Handle);
-    end;
-    3:
-    begin
-      Result := NtxCreateJob(hxJob);
+        if not Result.IsSuccess then
+          Exit;
 
-      if not Result.IsSuccess then
-        Exit;
+        write('The process was frozen via a debug object. Press enter to undo...');
+        readln;
 
-      JobInfo := Default(TJobObjectFreezeInformation);
-      JobInfo.Flags := JOB_OBJECT_OPERATION_FREEZE;
-      JobInfo.Freeze := True;
+        Result := NtxDebugProcessStop(hxProcess.Handle, hxDbg.Handle);
+      end;
 
-      Result := NtxJob.Set(hxJob.Handle, JobObjectFreezeInformation, JobInfo);
+    saFreezeViaJob:
+      begin
+        Result := NtxCreateJob(hxJob);
 
-      if not Result.IsSuccess then
-        Exit;
+        if not Result.IsSuccess then
+          Exit;
 
-      Result := NtxAssignProcessToJob(hxProcess.Handle, hxJob.Handle);
+        JobInfo := Default(TJobObjectFreezeInformation);
+        JobInfo.Flags := JOB_OBJECT_OPERATION_FREEZE;
+        JobInfo.Freeze := True;
 
-      if not Result.IsSuccess then
-        Exit;
+        Result := NtxJob.Set(hxJob.Handle, JobObjectFreezeInformation, JobInfo);
 
-      write('The process was frozen via a job object. Press enter to undo...');
-      readln;
+        if not Result.IsSuccess then
+          Exit;
 
-      JobInfo.Freeze := False;
+        Result := NtxAssignProcessToJob(hxProcess.Handle, hxJob.Handle);
 
-      Result := NtxJob.Set(hxJob.Handle, JobObjectFreezeInformation, JobInfo);
-    end;
-    4:
-    begin
-      Result := NtxCreateProcessState(hxProcessState, hxProcess.Handle);
+        if not Result.IsSuccess then
+          Exit;
 
-      if not Result.IsSuccess then
-        Exit;
+        write('The process was frozen via a job object. Press enter to undo...');
+        readln;
 
-      Result := NtxChageStateProcess(hxProcessState.Handle, hxProcess.Handle,
-        ProcessStateChangeSuspend);
+        JobInfo.Freeze := False;
 
-      if not Result.IsSuccess then
-        Exit;
+        Result := NtxJob.Set(hxJob.Handle, JobObjectFreezeInformation, JobInfo);
+      end;
 
-      write('The process was frozen via a state change. Press enter to undo...');
-      readln;
+    saFreezeViaState:
+      begin
+        Result := NtxCreateProcessState(hxProcessState, hxProcess.Handle);
 
-      Result := NtxChageStateProcess(hxProcessState.Handle, hxProcess.Handle,
-        ProcessStateChangeResume);
-    end;
+        if not Result.IsSuccess then
+          Exit;
+
+        Result := NtxChageStateProcess(hxProcessState.Handle, hxProcess.Handle,
+          ProcessStateChangeSuspend);
+
+        if not Result.IsSuccess then
+          Exit;
+
+        write('The process was frozen via a state change. Press enter to undo...');
+        readln;
+
+        Result := NtxChageStateProcess(hxProcessState.Handle, hxProcess.Handle,
+          ProcessStateChangeResume);
+      end;
   end;
 end;
 
