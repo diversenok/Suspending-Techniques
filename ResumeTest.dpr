@@ -84,7 +84,11 @@ begin
     Exit;
 
   writeln('Try suspending any/all of them.');
-  NtxDelayExecution(NT_INFINITE);
+
+  repeat
+    // Let the user trigger mode transitions on the main thread
+    readln;
+  until False;
 end;
 
 procedure ReportFailures(const xStatus: TNtxStatus);
