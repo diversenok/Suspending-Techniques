@@ -16,6 +16,8 @@ uses
 
 type
   TSuspendAction = (
+    saSuspendThreads,
+    saResumeThreads,
     saSuspendProcess,
     saResumeProcess,
     saFreezeViaDebug,
@@ -35,6 +37,8 @@ var
 begin
   writeln('Available options:');
   writeln;
+  writeln('[', Integer(saSuspendThreads), '] Enumerate and suspend all threads');
+  writeln('[', Integer(saResumeThreads), '] Enumerate and resume all threads');
   writeln('[', Integer(saSuspendProcess), '] Suspend via NtSuspendProcess');
   writeln('[', Integer(saResumeProcess), '] Resume via NtResumeProcess');
   writeln('[', Integer(saFreezeViaDebug), '] Freeze via a debug object');
@@ -47,6 +51,9 @@ begin
   writeln;
 
   case Action of
+    saSuspendThreads, saResumeThreads:
+      AccessMask := PROCESS_QUERY_INFORMATION;
+
     saSuspendProcess, saResumeProcess, saFreezeViaDebug:
       AccessMask := PROCESS_SUSPEND_RESUME;
 
@@ -76,7 +83,21 @@ begin
   if not Result.IsSuccess then
     Exit;
 
+  hxThread := nil;
+
   case Action of
+    saSuspendThreads:
+      while NtxGetNextThread(hxProcess.Handle, hxThread,
+        THREAD_SUSPEND_RESUME).Save(Result) do
+        if not NtxSuspendThread(hxThread.Handle).Save(Result) then
+          Exit;
+
+    saResumeThreads:
+      while NtxGetNextThread(hxProcess.Handle, hxThread,
+        THREAD_SUSPEND_RESUME).Save(Result) do
+        if not NtxResumeThread(hxThread.Handle).Save(Result) then
+          Exit;
+
     saSuspendProcess:
       Result := NtxSuspendProcess(hxProcess.Handle);
 
