@@ -1,0 +1,72 @@
+﻿<Project xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+    <PropertyGroup>
+        <ProjectGuid>{C81FC904-D8EF-43F6-9A0C-BEBE641C0AAC}</ProjectGuid>
+    </PropertyGroup>
+    <ItemGroup>
+        <Projects Include="Suspending\SuspendTool.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Monitoring\ModeTransitionMonitor.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Injecting\InjectTool.dproj">
+            <Dependencies/>
+        </Projects>
+        <Projects Include="Bypassing\SuspendMe.dproj">
+            <Dependencies/>
+        </Projects>
+    </ItemGroup>
+    <ProjectExtensions>
+        <Borland.Personality>Default.Personality.12</Borland.Personality>
+        <Borland.ProjectType/>
+        <BorlandProject>
+            <Default.Personality/>
+        </BorlandProject>
+    </ProjectExtensions>
+    <Target Name="SuspendTool">
+        <MSBuild Projects="Suspending\SuspendTool.dproj"/>
+    </Target>
+    <Target Name="SuspendTool:Clean">
+        <MSBuild Projects="Suspending\SuspendTool.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SuspendTool:Make">
+        <MSBuild Projects="Suspending\SuspendTool.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="ModeTransitionMonitor">
+        <MSBuild Projects="Monitoring\ModeTransitionMonitor.dproj"/>
+    </Target>
+    <Target Name="ModeTransitionMonitor:Clean">
+        <MSBuild Projects="Monitoring\ModeTransitionMonitor.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="ModeTransitionMonitor:Make">
+        <MSBuild Projects="Monitoring\ModeTransitionMonitor.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="InjectTool">
+        <MSBuild Projects="Injecting\InjectTool.dproj"/>
+    </Target>
+    <Target Name="InjectTool:Clean">
+        <MSBuild Projects="Injecting\InjectTool.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="InjectTool:Make">
+        <MSBuild Projects="Injecting\InjectTool.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="SuspendMe">
+        <MSBuild Projects="Bypassing\SuspendMe.dproj"/>
+    </Target>
+    <Target Name="SuspendMe:Clean">
+        <MSBuild Projects="Bypassing\SuspendMe.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SuspendMe:Make">
+        <MSBuild Projects="Bypassing\SuspendMe.dproj" Targets="Make"/>
+    </Target>
+    <Target Name="Build">
+        <CallTarget Targets="SuspendTool;ModeTransitionMonitor;InjectTool;SuspendMe"/>
+    </Target>
+    <Target Name="Clean">
+        <CallTarget Targets="SuspendTool:Clean;ModeTransitionMonitor:Clean;InjectTool:Clean;SuspendMe:Clean"/>
+    </Target>
+    <Target Name="Make">
+        <CallTarget Targets="SuspendTool:Make;ModeTransitionMonitor:Make;InjectTool:Make;SuspendMe:Make"/>
+    </Target>
+    <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
+</Project>

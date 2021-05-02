@@ -1,4 +1,4 @@
-program InjectTestTool;
+program InjectTool;
 
 {
   This is a tool for testing thread creation in other processes. It can inject

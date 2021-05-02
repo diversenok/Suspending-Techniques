@@ -1,4 +1,4 @@
-program ResumeTest;
+program SuspendMe;
 
 {
   This is a sample application that demonstrates how a process can try to
