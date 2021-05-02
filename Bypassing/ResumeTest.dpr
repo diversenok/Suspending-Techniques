@@ -38,7 +38,6 @@ function Main: TNtxStatus;
 var
   Threads: TArray<IHandle>;
   i, Count: Integer;
-  Info: TThreadBasicInformation;
 begin
   writeln('A demo of multiple threads constantly resuming each other.');
   writeln;
