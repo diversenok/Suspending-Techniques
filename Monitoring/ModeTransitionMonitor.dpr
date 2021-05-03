@@ -13,7 +13,7 @@ uses
   DelphiUtils.AutoObject, NtUtils.SysUtils, NtUtils.Processes,
   NtUtils.Processes.Snapshots, NtUtils.Processes.Query,
   NtUtils.Processes.Query.Remote, NtUtils.Tokens, NtUtils.Shellcode,
-  NtUtils.Synchronization, NtUiLib.Errors;
+  NtUtils.Synchronization, NtUtils.Version, NtUiLib.Errors;
 
 {
   The idea is the following:
@@ -105,12 +105,13 @@ begin
 
   writeln('Enabling instrumentation callback...');
 
-  if HasDebugPrivilege then
+  if HasDebugPrivilege or (RtlOsVersion < OsWin81) then
     // Either set it directly
     Result := NtxProcess.Set(hxProcess.Handle, ProcessInstrumentationCallback,
-      TProcessInstrumentationCallback(RemoteMapping.Data))
+      RemoteMapping.Data)
   else
-    // Or inject the code that does it on the target's behalf
+    // Or inject the code that does it on the target's behalf (if it helps
+    // avoiding the debug privilege)
     Result := NtxSetInstrumentationProcess(hxProcess, RemoteMapping.Data,
       NT_INFINITE);
 
