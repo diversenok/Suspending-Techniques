@@ -1,8 +1,7 @@
-unit InjectViaThreadPool;
+unit InjectTool.ThreadPool;
 
 {
   The implementation for triggering thread creation via existing thread pools.
-  See InjectTestTool.dpr for other functionality.
 }
 
 interface
@@ -10,7 +9,8 @@ interface
 uses
   NtUtils;
 
-// Method #2
+// Adjust the minimum number of threads in a thread pool to force the OS
+// to create new threads in a suspended process.
 function TriggerThreadPool(hProcess: THandle): TNtxStatus;
 
 implementation

@@ -97,7 +97,8 @@
         <DelphiCompile Include="$(MainSource)">
             <MainSource>MainSource</MainSource>
         </DelphiCompile>
-        <DCCReference Include="InjectViaThreadPool.pas"/>
+        <DCCReference Include="InjectTool.ThreadPool.pas"/>
+        <DCCReference Include="InjectTool.Direct.pas"/>
         <BuildConfiguration Include="Release">
             <Key>Cfg_2</Key>
             <CfgParent>Base</CfgParent>
