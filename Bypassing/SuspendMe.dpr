@@ -6,88 +6,63 @@ program SuspendMe;
 }
 
 {$APPTYPE CONSOLE}
+{$MINENUMSIZE 4}
 {$R *.res}
 
 uses
-  Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntpsapi, NtUtils, NtUtils.Threads,
-  NtUtils.SysUtils, NtUtils.Synchronization, NtUtils.Processes.Query,
-  NtUiLib.Errors;
+  Winapi.WinNt,
+  Ntapi.ntstatus,
+  Ntapi.ntpsapi,
+  NtUtils,
+  NtUtils.Threads,
+  NtUtils.Synchronization,
+  NtUtils.Processes.Query,
+  NtUiLib.Errors,
+  SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas';
 
-var
-  AllThreads: TArray<IHandle>;
-
-function ThreadMain(Context: Pointer): NTSTATUS; stdcall;
-var
-  CurrentIndex: NativeInt absolute Context;
-  i: Integer;
-begin
-  // Resume all other threads in a loop
-
-  while True do
-    for i := 0 to High(AllThreads) do
-      if i <> CurrentIndex then
-      begin
-        Result := NtResumeThread(AllThreads[i].Handle);
-
-        if not NT_SUCCESS(Result) then
-          Exit;
-      end;
-end;
+type
+  TActionOptions = (
+    aoRaceSuspension,
+    aoRaceSuspensionStealthy
+  );
 
 function Main: TNtxStatus;
 var
-  Threads: TArray<IHandle>;
-  i, Count: Integer;
+  Action: TActionOptions;
+  Checkpoint: Cardinal;
 begin
-  writeln('A demo of multiple threads constantly resuming each other.');
-  writeln;
-  write('Specify the number of threads (2 or more): ');
-  readln(Count);
+  NtxSetNameThread(NtCurrentThread, 'Main Thread');
 
-  if Count >= 1 shl 24 then
-  begin
-    Result.Location := 'Main';
-    Result.Status := STATUS_TOO_MANY_THREADS;
-    Exit;
-  end
-  else if Count < 2 then
-  begin
-    Result.Location := 'Main';
+  writeln('This is a demo application for bypassing process & thread suspension.');
+  writeln;
+  writeln('Available options:');
+  writeln('[', Integer(aoRaceSuspension), '] Try winning the race condition');
+  writeln('[', Integer(aoRaceSuspensionStealthy), '] Try winning the race condition (+ hide from debugger)');
+
+  writeln;
+  write('Your choice: ');
+  readln(Cardinal(Action));
+  writeln;
+
+  case Action of
+    aoRaceSuspension, aoRaceSuspensionStealthy:
+      Result := RaceSuspension(Action = aoRaceSuspensionStealthy);
+  else
     Result.Status := STATUS_INVALID_PARAMETER;
+    Result.Location := 'Main';
     Exit;
   end;
-
-  SetLength(Threads, Count);
-
-  for i := 0 to High(Threads) do
-  begin
-    // Create each thread in a suspended state
-    Result := NtxCreateThread(Threads[i], NtCurrentProcess, ThreadMain,
-      Pointer(i), THREAD_CREATE_FLAGS_CREATE_SUSPENDED);
-
-    if Result.IsSuccess then
-      NtxSetNameThread(Threads[i].Handle, 'Resumer Thread #' + RtlxIntToStr(i))
-    else
-      Exit;
-  end;
-
-  // Here the user can adjust their priorities, etc.
-  writeln;
-  write('Ready? Press enter to start.');
-  readln;
-
-  AllThreads := Threads;
-  Result := NtxResumeThread(Threads[0].Handle);
 
   if not Result.IsSuccess then
     Exit;
 
-  writeln('Try suspending any/all of them.');
+  Checkpoint := 0;
+  writeln;
 
   repeat
-    // Let the user trigger mode transitions on the main thread
-    readln;
-  until False;
+    writeln('[#', Checkpoint, '] Still alive!');
+    Inc(Checkpoint);
+  until not NtxDelayExecution(2000 * MILLISEC).IsSuccess;
 end;
 
 procedure ReportFailures(const xStatus: TNtxStatus);
