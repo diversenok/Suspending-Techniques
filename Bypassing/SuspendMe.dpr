@@ -18,12 +18,14 @@ uses
   NtUtils.Synchronization,
   NtUtils.Processes.Query,
   NtUiLib.Errors,
-  SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas';
+  SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas',
+  SuspendMe.ThreadPool in 'SuspendMe.ThreadPool.pas';
 
 type
   TActionOptions = (
     aoRaceSuspension,
-    aoRaceSuspensionStealthy
+    aoRaceSuspensionStealthy,
+    aoUseThreadPool
   );
 
 function Main: TNtxStatus;
@@ -38,6 +40,7 @@ begin
   writeln('Available options:');
   writeln('[', Integer(aoRaceSuspension), '] Try winning the race condition');
   writeln('[', Integer(aoRaceSuspensionStealthy), '] Try winning the race condition (+ hide from debugger)');
+  writeln('[', Integer(aoUseThreadPool), '] Create a thread pool for someone to trigger');
 
   writeln;
   write('Your choice: ');
@@ -47,6 +50,9 @@ begin
   case Action of
     aoRaceSuspension, aoRaceSuspensionStealthy:
       Result := RaceSuspension(Action = aoRaceSuspensionStealthy);
+
+    aoUseThreadPool:
+      Result := UseThreadPool;
   else
     Result.Status := STATUS_INVALID_PARAMETER;
     Result.Location := 'Main';
@@ -60,7 +66,7 @@ begin
   writeln;
 
   repeat
-    writeln('[#', Checkpoint, '] Still alive!');
+    writeln('[#', Checkpoint, '] The main thread is still active!');
     Inc(Checkpoint);
   until not NtxDelayExecution(2000 * MILLISEC).IsSuccess;
 end;

@@ -36,7 +36,7 @@ begin
     for i := 0 to High(AllThreads) do
       if i <> CurrentIndex then
       begin
-        Result := NtResumeThread(AllThreads[i].Handle);
+        Result := NtResumeThread(AllThreads[i].Handle, nil);
 
         if not NT_SUCCESS(Result) then
           Exit;
