@@ -61,7 +61,13 @@ begin
   begin
     Result := NtxOpenDebugObjectProcess(hxDbgObj, NtCurrentProcess);
 
-    if not Result.IsSuccess then
+    if Result.Status = STATUS_PORT_NOT_SET then
+    begin
+      // Nothing to do
+      Result.Status := STATUS_SUCCESS;
+      Exit;
+    end
+    else if not Result.IsSuccess then
       Exit;
 
     Result := NtxDebugProcessStop(NtCurrentProcess, hxDbgObj.Handle);
