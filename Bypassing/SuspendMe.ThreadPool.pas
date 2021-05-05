@@ -53,7 +53,7 @@ function UseThreadPool;
 var
   hxIoCompletion: IHandle;
 begin
-  Result := NtxOpenCurrentThread(hxMainThread, THREAD_SUSPEND_RESUME);
+  Result := NtxOpenCurrentThread(hxMainThread);
 
   if not Result.IsSuccess then
     Exit;

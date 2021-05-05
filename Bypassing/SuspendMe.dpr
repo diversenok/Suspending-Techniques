@@ -19,13 +19,16 @@ uses
   NtUtils.Processes.Query,
   NtUiLib.Errors,
   SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas',
-  SuspendMe.ThreadPool in 'SuspendMe.ThreadPool.pas';
+  SuspendMe.ThreadPool in 'SuspendMe.ThreadPool.pas',
+  SuspendMe.PatchCreation in 'SuspendMe.PatchCreation.pas';
 
 type
   TActionOptions = (
     aoRaceSuspension,
     aoRaceSuspensionStealthy,
-    aoUseThreadPool
+    aoUseThreadPool,
+    aoHijackThreads,
+    aoHijackThreadsAndDetach
   );
 
 function Main: TNtxStatus;
@@ -38,9 +41,11 @@ begin
   writeln('This is a demo application for bypassing process & thread suspension.');
   writeln;
   writeln('Available options:');
-  writeln('[', Integer(aoRaceSuspension), '] Try winning the race condition');
-  writeln('[', Integer(aoRaceSuspensionStealthy), '] Try winning the race condition (+ hide from debugger)');
+  writeln('[', Integer(aoRaceSuspension), '] Circumvent suspension using a race condition');
+  writeln('[', Integer(aoRaceSuspensionStealthy), '] Circumvent suspension using a race condition (hide threads from debugger)');
   writeln('[', Integer(aoUseThreadPool), '] Create a thread pool for someone to trigger');
+  writeln('[', Integer(aoHijackThreads), '] Hijack thread execution (resume on code injection)');
+  writeln('[', Integer(aoHijackThreadsAndDetach), '] Hijack thread execution (detach debuggers and resume on code injection)');
 
   writeln;
   write('Your choice: ');
@@ -53,6 +58,9 @@ begin
 
     aoUseThreadPool:
       Result := UseThreadPool;
+
+    aoHijackThreads, aoHijackThreadsAndDetach:
+      Result := HijackNewThreads(Action = aoHijackThreadsAndDetach);
   else
     Result.Status := STATUS_INVALID_PARAMETER;
     Result.Location := 'Main';
@@ -66,7 +74,7 @@ begin
   writeln;
 
   repeat
-    writeln('[#', Checkpoint, '] The main thread is still active!');
+    writeln('[#', Checkpoint, '] The main thread is active!');
     Inc(Checkpoint);
   until not NtxDelayExecution(2000 * MILLISEC).IsSuccess;
 end;

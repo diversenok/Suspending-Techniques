@@ -75,7 +75,7 @@ begin
 
   // The first item is always the main thread. It does not run the bypass
   // logic, but it's there so that other threads can resume it
-  Result := NtxOpenCurrentThread(Threads[0], THREAD_SUSPEND_RESUME);
+  Result := NtxOpenCurrentThread(Threads[0]);
 
   if not Result.IsSuccess then
     Exit;
