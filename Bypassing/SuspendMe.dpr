@@ -20,7 +20,8 @@ uses
   NtUiLib.Errors,
   SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas',
   SuspendMe.ThreadPool in 'SuspendMe.ThreadPool.pas',
-  SuspendMe.PatchCreation in 'SuspendMe.PatchCreation.pas';
+  SuspendMe.PatchCreation in 'SuspendMe.PatchCreation.pas',
+  SuspendMe.SelfDebug in 'SuspendMe.SelfDebug.pas';
 
 type
   TActionOptions = (
@@ -28,13 +29,15 @@ type
     aoRaceSuspensionStealthy,
     aoUseThreadPool,
     aoHijackThreads,
-    aoHijackThreadsAndDetach
+    aoHijackThreadsAndDetach,
+    aoUseSelfDebug
   );
 
 function Main: TNtxStatus;
 var
   Action: TActionOptions;
   Checkpoint: Cardinal;
+  hxDebugObject: IHandle;
 begin
   NtxSetNameThread(NtCurrentThread, 'Main Thread');
 
@@ -46,6 +49,7 @@ begin
   writeln('[', Integer(aoUseThreadPool), '] Create a thread pool for someone to trigger');
   writeln('[', Integer(aoHijackThreads), '] Hijack thread execution (resume on code injection)');
   writeln('[', Integer(aoHijackThreadsAndDetach), '] Hijack thread execution (detach debuggers and resume on code injection)');
+  writeln('[', Integer(aoUseSelfDebug), '] Start self-debugging so nobody else can attach');
 
   writeln;
   write('Your choice: ');
@@ -61,6 +65,9 @@ begin
 
     aoHijackThreads, aoHijackThreadsAndDetach:
       Result := HijackNewThreads(Action = aoHijackThreadsAndDetach);
+
+    aoUseSelfDebug:
+      Result := StartSelfDebugging(hxDebugObject);
   else
     Result.Status := STATUS_INVALID_PARAMETER;
     Result.Location := 'Main';
