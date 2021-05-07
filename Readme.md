@@ -26,15 +26,16 @@ If you want to know more technical details about these mechanisms, check out `Ps
 
 I wrote several tools that you can use to experiment and reproduce my observations:
 
- - **Suspend Tool** is a program that can suspend/freeze processes using several different methods. I will cover the techniques it implements in the next section.
- - **Mode Transition Monitor** is a program that detects all kernel-to-user mode transitions happening within a specific process. It achieves this by installing the Instrumentation Callback (see [slides by Alex Ionescu](https://github.com/ionescu007/HookingNirvana/blob/9e4e8e326b9dfd10a7410986486e567e5980f913/Esoteric%20Hooks.pdf) and a [blog post by Antonio Cocomazzi](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html)) and counting its invocations.
- - **Inject Test Tool** is a program for injecting dummy threads (either directly or via a thread pool) into a process.
+ - **SuspendTool** is a program that can suspend/freeze processes using several different methods. I will cover the techniques it implements in the next section.
+ - **ModeTransitionMonitor** is a program that detects all kernel-to-user mode transitions happening within a specific process. It achieves this by installing the Instrumentation Callback (see [slides by Alex Ionescu](https://github.com/ionescu007/HookingNirvana/blob/9e4e8e326b9dfd10a7410986486e567e5980f913/Esoteric%20Hooks.pdf) and a [blog post by Antonio Cocomazzi](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html)) and counting its invocations.
+ - **InjectTool** is a program for injecting dummy threads (either directly or via a thread pool) into a process.
  - **SuspendMe** is a test application that demonstrates several approaches for bypassing suspension.
 
 # Techniques
 
 ## Snapshot & Suspend Threads (Not Covered)
 
+### Idea
 It appears that the documented way to suspend a process is to snapshot the list of its threads via [CreateToolhelp32Snapshot](https://docs.microsoft.com/en-us/windows/win32/api/tlhelp32/nf-tlhelp32-createtoolhelp32snapshot) and then suspend each one of them using [SuspendThread](https://docs.microsoft.com/en-us/windows/win32/api/processthreadsapi/nf-processthreadsapi-suspendthread). This approach sounds like a terrible idea for several reasons:
 
 1. It requires passing access checks on all target threads when obtaining their handles.
@@ -66,5 +67,19 @@ Pros                                                        | Cons
 ----------------------------------------------------------- | ----
 Does not require keeping any handles to maintain suspension | Requires passing access checks on threads
 _-_                                                         | Does not prevent race conditions
+_-_                                                         | Does not suspend future threads
+
+## NtSuspendProcess
+
+### Idea
+A pair of functions called [NtSuspendProcess](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1195-L1200) and [NtResumeProcess](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1202-L1207) provides an exceptionally straightforward and easy-to-use solution. This is the most widely-used method that powers suspension functionality in **Windows Resource Monitor**, **Process Explorer**, **Process Hacker**, and a handful of other tools.
+
+### Bypasses
+Unfortunately for us, it also suffers from almost the same set of problems. The method itself is surprisingly similar to the previous one with a single significant difference - it executes in the kernel mode and does not require passing additional access checks. Essentially, it uses a loop of `PsGetNextProcessThread` + `PsSuspendThread` as opposed to `NtGetNextThread` + `NtSuspendThread` we had in the previous case. Thus, it fails to provide atomicity and falls victim to the race condition from item **2A**. And again, you can demonstrate this behavior with any of the tools mentioned above by trying to suspend my **SuspendMe** program when it works in the race-condition-bypassing mode. The examples with thread pools and thread hijacking also apply here; feel free to experiment yourself.
+
+### Overview
+Pros                                                        | Cons
+----------------------------------------------------------- | ----
+Does not require keeping any handles to maintain suspension | Does not prevent race conditions
 _-_                                                         | Does not suspend future threads
 
