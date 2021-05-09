@@ -222,8 +222,8 @@ begin
   if not Result.IsSuccess then
     Exit;
 
-  // Prevent debug object's inheritance
-  NtxSetFlagsHandle(hxDebugObject.Handle, False, False);
+  // Prevent debug object's inheritance and closing
+  NtxSetFlagsHandle(hxDebugObject.Handle, False, True);
 
   writeln('Note that we blocked Ctrl+C because new threads can deadlock us. ' +
     'You can still close the console or terminate the process from an ' +

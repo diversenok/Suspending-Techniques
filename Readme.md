@@ -69,7 +69,7 @@ Does not require keeping any handles to maintain suspension | Requires passing a
 _-_                                                         | Does not prevent race conditions
 _-_                                                         | Does not suspend future threads
 
-## NtSuspendProcess
+## Suspend via NtSuspendProcess
 
 ### Idea
 A pair of functions called [NtSuspendProcess](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1195-L1200) and [NtResumeProcess](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1202-L1207) provides an exceptionally straightforward and easy-to-use solution. This is the most widely-used method that powers suspension functionality in **Windows Resource Monitor**, **Process Explorer**, **Process Hacker**, and a handful of other tools.
@@ -82,4 +82,35 @@ Pros                                                        | Cons
 ----------------------------------------------------------- | ----
 Does not require keeping any handles to maintain suspension | Does not prevent race conditions
 _-_                                                         | Does not suspend future threads
+
+## Suspend via a Debug Object
+
+### Idea
+How about taking an alternative path? Debugging is essentially a fancy inter-process synchronization mechanism compatible with any application out-of-the-box. If you are not familiar with its internals, here is a quick recap. First, a debugger creates a debug object (aka debug port) and then attaches it to the target process. Starting from this point, every time an event of interest occurs in the target process (be it thread creation, exception, or a breakpoint hit), the system pauses its execution and posts a message to the debug port, waiting for an acknowledgment. Additionally, attaching itself generates a process creation and a few module loading events. Luckily for us, the system does not enforce any time constraints on the responses, so we can delay them indefinitely, keeping the target paused.
+
+In terms of Native API, we call [NtCreateDebugObject](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntdbg.h#L231-L239), followed by [NtDebugActiveProcess](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntdbg.h#L241-L247) (which requires `PROCESS_SUSPEND_RESUME` access to the process). Typically, debuggers implement a loop of [NtWaitForDebugEvent](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntdbg.h#L277-L285) + [NtDebugContinue](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntdbg.h#L249-L256), but we don't need that since we are not interested in debugging itself. Instead, we wait until it's time to resume the process and either close the debug object or call [NtRemoveProcessDebug](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntdbg.h#L258-L264) to detach altogether. As you can see, this method has a slight disadvantage: it  keeping a handle to the debug object. We can, however, store this handle within the target process, so it shouldn't be a significant issue.
+
+Interestingly, while malicious programs often implement various anti-debugging techniques, almost none of them interfere with our approach because we don't let the application execute any code. Still, a process can have only a single debug port, so if it manages to attach one to itself, it will prevent us from doing the same. I implemented an option for starting a self-debugging session in the **SuspendMe** tool but, to be honest, I did it mainly because I find it a peculiar challenge rather than a demonstration of a plausible attack vector.
+
+### Bypasses
+I was deliberately avoiding the question of whether this technique provides suspension, freezing, or deep freezing. Confusingly, it has the properties of all of them. I believe the best way to explain it is to let you experiment with the tools yourself. You'll need **SuspendTool** with option #4, **InjectTool**, all techniques from **SuspendMe**, and, optionally, **ModeTransitionMonitor**. You should be able to reproduce the following results:
+
+1. There is still a race condition with suspension.
+2. Creating and terminating threads freezes the process.
+3. However, it does not occur when using the *hide-from-debugger* flag.
+4. Yet, existing threads with this flag can get frozen.
+
+The functionality of hiding threads from debuggers is not exposed through the documented API, so the last two observations are somewhat exotic. To create such a thread, supply `THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER` to [NtCreateThreadEx](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1831-L1846); to hide an existing one, use `ThreadHideFromDebugger` info class with [NtSetInformationThread](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1371-L1379).
+
+As you can see, there is something sophisticated going on. Fortunately, with some knowledge about the internals of debugging, we can break it down and explain based on several simple rules:
+
+1. Process creation and module loading events (that we receive while attaching) merely suspend the process. This suspension is subject to race conditions because, for some reason, it does not involve freezing.
+2. Thread-creation and termination events, on the other hand, do a way better job: they freeze all existing threads. Technically, it is still ordinary freezing. But since it uses such convenient triggers, it is almost as good as deep freezing.
+3. Hidden threads do not trigger debugging events, so they are free to execute even in a frozen process, but only if created after the freezing occurred.
+
+### Overview
+Pros                   | Cons
+---------------------- | ----
+Freezes future threads | Requires keeping a handle open 
+_-_                    | Does not prevent race conditions
 

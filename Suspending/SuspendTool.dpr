@@ -37,12 +37,12 @@ var
 begin
   writeln('Available options:');
   writeln;
-  writeln('[', Integer(saSuspendThreads), '] Enumerate and suspend all threads');
-  writeln('[', Integer(saResumeThreads), '] Enumerate and resume all threads');
+  writeln('[', Integer(saSuspendThreads), '] Enumerate & suspend all threads');
+  writeln('[', Integer(saResumeThreads), '] Enumerate & resume all threads');
   writeln('[', Integer(saSuspendProcess), '] Suspend via NtSuspendProcess');
   writeln('[', Integer(saResumeProcess), '] Resume via NtResumeProcess');
-  writeln('[', Integer(saFreezeViaDebug), '] Freeze via a debug object');
-  writeln('[', Integer(saFreezeViaDebugInject), '] Freeze via a debug object (with thread injection)');
+  writeln('[', Integer(saFreezeViaDebug), '] Suspend via a debug object');
+  writeln('[', Integer(saFreezeViaDebugInject), '] Freeze via a debug object');
   writeln('[', Integer(saFreezeViaJob), '] Freeze via a job object');
   writeln('[', Integer(saFreezeViaState), '] Suspend via a state change object');
   writeln;
