@@ -21,8 +21,8 @@ implementation
 
 uses
   Winapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntrtl, Ntapi.ntmmapi,
-  DelphiApi.Reflection, DelphiUtils.ExternalImport, NtUtils.Threads,
-  NtUtils.Processes.Memory, NtUtils.Debug, NtUiLib.Errors;
+  DelphiApi.Reflection, DelphiUtils.ExternalImport, NtUtils.Processes,
+  NtUtils.Threads, NtUtils.Processes.Memory, NtUtils.Debug, NtUiLib.Errors;
 
 var
   hxMainThread: IHandle;
@@ -139,6 +139,7 @@ const
 var
   pCode: PPointer;
   Code: PFarJump;
+  UndoProtection: IAutoReleasable;
 begin
   Result := NtxOpenCurrentThread(hxMainThread);
 
@@ -159,8 +160,8 @@ begin
   PerformDetach := DetachFromDebugger;
 
   // Make it writable
-  Result := NtxProtectMemoryProcess(NtCurrentProcess, Code, SizeOf(TFarJump),
-    PAGE_EXECUTE_READWRITE);
+  Result := NtxProtectMemoryProcess(NtxCurrentProcess, Code, SizeOf(TFarJump),
+    PAGE_EXECUTE_READWRITE, UndoProtection);
 
   if not Result.IsSuccess then
     Exit;
@@ -172,9 +173,8 @@ begin
   Code.JumpRax := JMP_RAX;
   Code.InstructionStart := MOV_RAX;
 
+  UndoProtection := nil;
   NtxFlushInstructionCache(NtCurrentProcess, Code, SizeOf(TFarJump));
-  NtxProtectMemoryProcess(NtCurrentProcess, Code, SizeOf(TFarJump),
-    PAGE_EXECUTE_READ);
 
   writeln('Now suspend the process and try injecting some code or inspecting ' +
     'its list of threads in Process Explorer.');

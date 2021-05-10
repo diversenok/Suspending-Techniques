@@ -61,6 +61,7 @@ var
   Import: TArray<TImportDllEntry>;
   i, j: Integer;
   IAT: Pointer;
+  UndoProtection: IAutoReleasable;
 begin
   if RtlxEnumerateImportImage(Import, ModuleBase, Size, True).IsSuccess then
     for i := 0 to High(Import) do
@@ -76,15 +77,15 @@ begin
 
         IAT := ModuleBase + Import[i].IAT + Cardinal(j) * SizeOf(Pointer);
 
-        if NtxProtectMemoryProcess(NtCurrentProcess, IAT, SizeOf(Pointer),
-          PAGE_READWRITE).IsSuccess then
+        if NtxProtectMemoryProcess(NtxCurrentProcess, IAT, SizeOf(Pointer),
+          PAGE_READWRITE, UndoProtection).IsSuccess then
           Pointer(IAT^) := @NtCreateThreadEx;
       end;
     end;
 end;
 
 // Make sure we avoid generating debug event as much as possible
-procedure SuppressDebugEvents;
+function SuppressDebugEvents: IAutoReleasable;
 var
   hxThread: IHandle;
   Module: TModuleEntry;
@@ -102,8 +103,8 @@ begin
       PatchThreadCreation(Module.DllBase, Module.SizeOfImage);
 
   // Protecting the page with the MZ header blocks external thread creations
-  NtxProtectMemoryProcess(NtCurrentProcess, @ImageBase, 1, PAGE_READONLY or
-    PAGE_GUARD);
+  NtxProtectMemoryProcess(NtxCurrentProcess, @ImageBase, 1, PAGE_READONLY or
+    PAGE_GUARD, Result);
 end;
 
 // The function we execute in a fork (since someone need to respond to the debug
@@ -126,6 +127,8 @@ begin
   repeat
     Result := NtxDebugWait(hDebugObject, Wait, Handles, 0);
 
+    // A timeout means that we removed all messages from the queue,
+    // so it should be considered successful
     if not Result.IsSuccess or (Result.Status = STATUS_TIMEOUT) then
       Break;
 
