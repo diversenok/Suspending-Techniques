@@ -1,7 +1,7 @@
 program SuspendTool;
 
 {
-  A small tool for testing various methods of suspending processes.
+  A small tool for testing various techniques for suspending/freezing processes.
 }
 
 {$APPTYPE CONSOLE}
@@ -9,10 +9,17 @@ program SuspendTool;
 {$R *.res}
 
 uses
-  Winapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntpsapi, NtUtils,
-  NtUtils.Ldr, NtUtils.Processes, NtUtils.Processes.Snapshots, NtUtils.Debug,
-  NtUtils.Job, NtUtils.Processes.Query, NtUtils.Threads, NtUtils.SysUtils,
-  NtUiLib.Errors;
+  Ntapi.ntstatus,
+  Ntapi.ntpsapi,
+  NtUtils,
+  NtUtils.Threads,
+  NtUtils.Processes,
+  NtUtils.Processes.Snapshots,
+  NtUtils.Processes.Query,
+  NtUtils.SysUtils,
+  NtUtils.Job,
+  NtUiLib.Errors,
+  SuspendTool.DebugObject in 'SuspendTool.DebugObject.pas';
 
 type
   TSuspendAction = (
@@ -20,15 +27,15 @@ type
     saResumeThreads,
     saSuspendProcess,
     saResumeProcess,
+    saSuspendViaDebug,
     saFreezeViaDebug,
-    saFreezeViaDebugInject,
     saFreezeViaJob,
     saFreezeViaState
   );
 
 function Main: TNtxStatus;
 var
-  hxProcess, hxThread, hxDbg, hxJob, hxProcessState: IHandle;
+  hxProcess, hxThread, hxJob, hxProcessState: IHandle;
   AccessMask: TProcessAccessMask;
   ProcessName: String;
   Action: TSuspendAction;
@@ -41,8 +48,8 @@ begin
   writeln('[', Integer(saResumeThreads), '] Enumerate & resume all threads');
   writeln('[', Integer(saSuspendProcess), '] Suspend via NtSuspendProcess');
   writeln('[', Integer(saResumeProcess), '] Resume via NtResumeProcess');
-  writeln('[', Integer(saFreezeViaDebug), '] Suspend via a debug object');
-  writeln('[', Integer(saFreezeViaDebugInject), '] Freeze via a debug object');
+  writeln('[', Integer(saSuspendViaDebug), '] Suspend via a debug object');
+  writeln('[', Integer(saFreezeViaDebug), '] Freeze via a debug object');
   writeln('[', Integer(saFreezeViaJob), '] Freeze via a job object');
   writeln('[', Integer(saFreezeViaState), '] Suspend via a state change object');
   writeln;
@@ -54,11 +61,8 @@ begin
     saSuspendThreads, saResumeThreads:
       AccessMask := PROCESS_QUERY_INFORMATION;
 
-    saSuspendProcess, saResumeProcess, saFreezeViaDebug:
+    saSuspendProcess, saResumeProcess, saSuspendViaDebug, saFreezeViaDebug:
       AccessMask := PROCESS_SUSPEND_RESUME;
-
-    saFreezeViaDebugInject:
-      AccessMask := PROCESS_SUSPEND_RESUME or PROCESS_CREATE_THREAD;
 
     saFreezeViaJob:
       AccessMask := PROCESS_ASSIGN_TO_JOB;
@@ -104,40 +108,11 @@ begin
     saResumeProcess:
       Result := NtxResumeProcess(hxProcess.Handle);
 
-    saFreezeViaDebug, saFreezeViaDebugInject:
-      begin
-        Result := NtxCreateDebugObject(hxDbg);
+    saSuspendViaDebug:
+      Result := SuspendViaDebugMain(hxProcess);
 
-        if not Result.IsSuccess then
-          Exit;
-
-        Result := NtxDebugProcess(hxProcess.Handle, hxDbg.Handle);
-
-        if not Result.IsSuccess then
-          Exit;
-
-        // Injecting a thread causes the system to freeze other threads
-        if Action = saFreezeViaDebugInject then
-        begin
-          // No need to specify a valid start address since it will never run
-          Result := NtxCreateThread(hxThread, hxProcess.Handle, nil, nil,
-            THREAD_CREATE_FLAGS_CREATE_SUSPENDED);
-
-          if not Result.IsSuccess then
-            Exit;
-
-          NtxSetNameThread(hxThread.Handle, 'Injected helper thread');
-          Result := NtxTerminateThread(hxThread.Handle, DBG_TERMINATE_THREAD);
-
-          if not Result.IsSuccess then
-            Exit;
-        end;
-
-        write('The process was frozen via a debug object. Press enter to undo...');
-        readln;
-
-        Result := NtxDebugProcessStop(hxProcess.Handle, hxDbg.Handle);
-      end;
+    saFreezeViaDebug:
+      Result := FreezeViaDebugMain(hxProcess);
 
     saFreezeViaJob:
       begin
