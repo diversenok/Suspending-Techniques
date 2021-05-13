@@ -66,7 +66,8 @@ begin
   if RtlxStrToInt(ProcessName, PID) then
     Result := NtxOpenProcess(hxProcess, PID, AccessMask)
   else
-    Result := NtxOpenProcessByName(hxProcess, ProcessName, AccessMask);
+    Result := NtxOpenProcessByName(hxProcess, ProcessName, AccessMask,
+      [pnAllowShortNames]);
 
   if not Result.IsSuccess then
     Exit;
