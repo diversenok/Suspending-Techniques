@@ -22,9 +22,9 @@ function StartSelfDebugging(
 implementation
 
 uses
-  Ntapi.ntdef, Ntapi.ntstatus, Winapi.WinError, Ntapi.ntrtl, Ntapi.ntmmapi,
-  Ntapi.ntpsapi, NtUtils.Debug, NtUtils.Processes, NtUtils.Sections,
-  NtUtils.SysUtils, NtUtils.Processes.Create, NtUtils.Processes.Create.Native,
+  Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntrtl, Ntapi.ntmmapi, Ntapi.ntpsapi,
+  NtUtils.Debug, NtUtils.Processes, NtUtils.Sections, NtUtils.SysUtils,
+  NtUtils.Processes.Create, NtUtils.Processes.Create.Native,
   NtUtils.Processes.Memory, NtUtils.Threads, NtUtils.Ldr, NtUtils.ImageHlp,
   NtUtils.Synchronization, NtUtils.Objects, NtUtils.Security.Acl,
   DelphiUtils.AutoObject;
@@ -213,8 +213,9 @@ begin
 
   if Result.Status = STATUS_TIMEOUT then
   begin
-    // Make timeouts unsuccessful
-    Result.Win32Error := ERROR_TIMEOUT;
+    // Terminate and forward the error
+    NtxTerminateProcess(Info.hxProcess.Handle, STATUS_TIMEOUT);
+    Result.Status := STATUS_WAIT_TIMEOUT;
     Exit;
   end;
 
