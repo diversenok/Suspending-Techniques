@@ -15,9 +15,9 @@ uses
   NtUtils.Threads,
   NtUtils.Processes,
   NtUtils.Processes.Snapshots,
-  NtUtils.Processes.Query,
   NtUtils.SysUtils,
   NtUtils.Job,
+  NtUtils.Console,
   NtUiLib.Errors,
   SuspendTool.DebugObject in 'SuspendTool.DebugObject.pas';
 
@@ -54,7 +54,7 @@ begin
   writeln('[', Integer(saFreezeViaState), '] Suspend via a state change object');
   writeln;
   write('Your choice: ');
-  readln(Cardinal(Action));
+  Cardinal(Action) := ReadCardinal(0, Cardinal(High(TSuspendAction)));
   writeln;
 
   case Action of
@@ -76,7 +76,7 @@ begin
   end;
 
   write('PID or a unique image name: ');
-  readln(ProcessName);
+  ProcessName := ReadString(False);
   writeln;
 
   if RtlxStrToInt(ProcessName, PID) then

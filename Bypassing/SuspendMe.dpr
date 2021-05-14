@@ -16,7 +16,7 @@ uses
   NtUtils,
   NtUtils.Threads,
   NtUtils.Synchronization,
-  NtUtils.Processes.Query,
+  NtUtils.Console,
   NtUiLib.Errors,
   SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas',
   SuspendMe.ThreadPool in 'SuspendMe.ThreadPool.pas',
@@ -53,7 +53,7 @@ begin
 
   writeln;
   write('Your choice: ');
-  readln(Cardinal(Action));
+  Cardinal(Action) := ReadCardinal(0, Cardinal(High(TActionOptions)));
   writeln;
 
   case Action of

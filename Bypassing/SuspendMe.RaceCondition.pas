@@ -19,7 +19,8 @@ function RaceSuspension(
 implementation
 
 uses
-  Ntapi.ntdef, Ntapi.ntpsapi, Ntapi.ntstatus, NtUtils.Threads, NtUtils.Sysutils;
+  Ntapi.ntdef, Ntapi.ntpsapi, NtUtils.Threads, NtUtils.Sysutils,
+  NtUtils.Console;
 
 var
   AllThreads: TArray<IHandle>;
@@ -50,20 +51,7 @@ var
   i, Count: Integer;
 begin
   write('Specify the number of threads (2 or more): ');
-  readln(Count);
-
-  if Count >= 1 shl 24 then
-  begin
-    Result.Location := 'RaceSuspension';
-    Result.Status := STATUS_TOO_MANY_THREADS;
-    Exit;
-  end
-  else if Count < 2 then
-  begin
-    Result.Location := 'RaceSuspension';
-    Result.Status := STATUS_INVALID_PARAMETER;
-    Exit;
-  end;
+  Count := ReadCardinal(2, 1 shl 24);
 
   Flags := THREAD_CREATE_FLAGS_CREATE_SUSPENDED;
 

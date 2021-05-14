@@ -13,7 +13,7 @@ uses
   DelphiUtils.AutoObject, NtUtils.SysUtils, NtUtils.Processes,
   NtUtils.Processes.Snapshots, NtUtils.Processes.Query,
   NtUtils.Processes.Query.Remote, NtUtils.Tokens, NtUtils.Shellcode,
-  NtUtils.Synchronization, NtUtils.Version, NtUiLib.Errors;
+  NtUtils.Synchronization, NtUtils.Version, NtUtils.Console, NtUiLib.Errors;
 
 {
   The idea is the following:
@@ -67,7 +67,7 @@ begin
   HasDebugPrivilege := Result.Status <> STATUS_NOT_ALL_ASSIGNED;
 
   write('Target''s PID or a unique image name: ');
-  readln(ProcessName);
+  ProcessName := ReadString(False);
   writeln;
 
   // Open the target

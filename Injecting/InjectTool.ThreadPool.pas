@@ -18,7 +18,7 @@ implementation
 uses
   Ntapi.ntstatus, Ntapi.nttp, NtUtils.Threads.Worker, NtUtils.Objects,
   NtUtils.Objects.Snapshots, NtUtils.SysUtils, DelphiUtils.Arrays,
-  NtUiLib.Errors;
+  NtUtils.Console, NtUiLib.Errors;
 
 type
   TThreadPoolEntry = record
@@ -94,16 +94,7 @@ begin
 
   writeln;
   write('Your choice: ');
-  readln(i);
-
-  if (i < 0) or (i > High(ThreadPools)) then
-  begin
-    Result.Location := 'ChooseThreadPool';
-    Result.Status := STATUS_INVALID_PARAMETER;
-    Exit;
-  end;
-
-  ThreadPool := ThreadPools[i];
+  ThreadPool := ThreadPools[ReadCardinal(0, High(ThreadPools))];
   Result := ThreadPool.Status;
 end;
 

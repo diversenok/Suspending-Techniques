@@ -16,7 +16,7 @@ uses
   NtUtils.SysUtils,
   NtUtils.Processes,
   NtUtils.Processes.Snapshots,
-  NtUtils.Processes.Query,
+  NtUtils.Console,
   NtUiLib.Errors,
   InjectTool.ThreadPool in 'InjectTool.ThreadPool.pas',
   InjectTool.Direct in 'InjectTool.Direct.pas';
@@ -44,7 +44,7 @@ begin
   writeln('[', Integer(iaTriggerThreadPool) ,'] Trigger thread pool''s thread creation');
   writeln;
   write('Your choice: ');
-  readln(Cardinal(Action));
+  Cardinal(Action) := ReadCardinal(0, Cardinal(High(TInjectionAction)));
   writeln;
 
   case Action of
@@ -60,7 +60,7 @@ begin
   end;
 
   write('PID or a unique image name: ');
-  readln(ProcessName);
+  ProcessName := ReadString(False);
   writeln;
 
   if RtlxStrToInt(ProcessName, PID) then
