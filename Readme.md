@@ -2,6 +2,8 @@
 
 This is a repository that includes several tools for experimenting with various techniques for suspending processes on Windows. The idea of this project arose from a [discussion at Process Hacker](https://github.com/processhacker/processhacker/issues/856).
 
+I performed most experiments on Windows 10 20H2, but the topics I describe here apply at least starting from Windows 7 (except for the functionality that did not exist yet). If you are using Windows Insider builds, see the notes below the next section because there are some changes in the behavior.
+
 # Idea
 
 While we can [argue on the exact definition](https://github.com/processhacker/processhacker/issues/856#issuecomment-813092041) of what it means for a thread to be in a suspended state, conceptually, it requires trapping it in the kernel mode and, therefore, preventing it from executing any user-mode code. Since processes do not execute code anyway (they are merely containers for resources), we refer to them as being suspended when all of their threads are. What is interesting for us is to control suspension from an external tool such as Process Hacker.
@@ -12,9 +14,11 @@ The second mechanism we are going to cover here is called ***freezing***. Overal
 
 [NtQueryInformationThread](https://github.com/processhacker/processhacker/blob/000a748b3c2bf75cff03212cbc59a30cd67c2043/phnt/include/ntpsapi.h#L1360-L1369) exposes the value of the suspend counter via the ThreadSuspendCount info class. Note that the function increments the output (originating from `KTHREAD`'s `SuspendCount`) by one for frozen processes. So, if you ever encounter a thread with a ThreadSuspendCount of one that you can increment but cannot decrement - it is definitely frozen.
 
-Finally, there is ***deep freezing***. This feature is built on top of ordinary freezing using a special per-process flag that indicates that newly created threads must be immediately frozen.
+Finally, starting from Windows 8, there is ***deep freezing***, a completely per-process concept controlled by a dedicated flag in the `KPROCESS` structure. Unlike ordinary freezing, it guarantees that new threads created in a deep-frozen process immediately become frozen as well. This feature proves to be the most reliable option when it comes to preventing code execution.
 
-If you want to know more technical details about these mechanisms, check out `PsSuspendThread` and `PsFreezeProcess` in ntoskrnl, and read the chapter about threads in [Windows Internals](https://books.google.nl/books?id=V4kjnwEACAAJ).
+Interestingly, Microsoft recently introduced some changes to these mechanisms that made freezing and deep freezing indistinguishable, as far as my user-mode experiments can tell. It happened somewhere between Insider builds 20231 and 21286. If you are using Windows Insider Preview, you'll notice that injecting threads into a frozen process freezes them as if the process is actually deep-frozen. While it yields some of the demonstrations I prepared less exciting, it does make multiple techniques more reliable.
+
+If you want to know more technical details regarding these mechanisms, check out `PsSuspendThread` and `PsFreezeProcess` with their cross-references in ntoskrnl, and read [Windows Internals](https://books.google.nl/books?id=V4kjnwEACAAJ).
 
 # Research Questions
 
@@ -99,6 +103,8 @@ I was deliberately avoiding the question of whether this technique provides susp
 2. Creating and terminating threads freezes the process.
 3. However, it does not occur when using the *hide-from-debugger* flag.
 4. Yet, existing threads with this flag can get frozen.
+
+*Note that item #3 does not apply to recent Insider builds.*
 
 The functionality of hiding threads from debuggers is not exposed through the documented API, so the last two observations are somewhat exotic. To create such a thread, supply `THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER` to [NtCreateThreadEx](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1831-L1846); to hide an existing one, use `ThreadHideFromDebugger` info class with [NtSetInformationThread](https://github.com/processhacker/processhacker/blob/c28efff632e76f1cb60aeb798a4cceae1289f3dd/phnt/include/ntpsapi.h#L1371-L1379).
 
