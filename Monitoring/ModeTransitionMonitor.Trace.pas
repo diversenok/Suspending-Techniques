@@ -102,7 +102,7 @@ begin
     else
       writeln;
 
-    if i >= 6 then
+    if i > 6 then
     begin
       writeln('  ...');
       Break;

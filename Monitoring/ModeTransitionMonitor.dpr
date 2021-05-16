@@ -71,6 +71,16 @@ begin
     writeln('WARNING: Debug Privilege is not available; will use thread ' +
       'injection instead.' + #$D#$A);
 
+  write('Do you want to capture return addresses? [y/n]: ');
+  CaptureTraces := ReadBoolean;
+
+  if CaptureTraces then
+  begin
+    writeln('Loading symbols...');
+    writeln;
+    InitializeSymbols;
+  end;
+
   write('Target''s PID or a unique image name: ');
   ProcessName := ReadString(False);
   writeln;
@@ -98,15 +108,6 @@ begin
     Exit;
   end;
 
-  write('Do you want to capture return addresses? [y/n]: ');
-  CaptureTraces := ReadBoolean;
-
-  if CaptureTraces then
-  begin
-    writeln('Loading symbols...');
-    InitializeSymbols;
-  end;
-
   writeln('Setting up monitoring...');
   Result := StartMonitoring(hxProcess, TraceMagnitude[CaptureTraces],
     LocalMapping);
@@ -117,6 +118,7 @@ begin
   writeln;
   IsIdle := False;
   PreviousCount := 0;
+  Result.Status := STATUS_TIMEOUT;
 
   repeat
     CurrentCount := LocalMapping.Data.SyscallCount;
@@ -137,8 +139,11 @@ begin
     IsIdle := (CurrentCount = PreviousCount);
     PreviousCount := CurrentCount;
 
+    if Result.Status <> STATUS_TIMEOUT then
+      Break;
+
     Result := NtxWaitForSingleObject(hxProcess.Handle, 1000 * MILLISEC);
-  until Result.Status <> STATUS_TIMEOUT;
+  until False;
 
   if Result.Status <> STATUS_WAIT_0 then
     Exit;
