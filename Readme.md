@@ -32,6 +32,7 @@ I wrote several tools that you can use to experiment and reproduce my observatio
 
  - **SuspendTool** is a program that can suspend/freeze processes using several different methods. I will cover the techniques it implements in the next section.
  - **ModeTransitionMonitor** is a program that detects all kernel-to-user mode transitions happening within a specific process. It achieves this by installing the Instrumentation Callback (see [slides by Alex Ionescu](https://github.com/ionescu007/HookingNirvana/blob/9e4e8e326b9dfd10a7410986486e567e5980f913/Esoteric%20Hooks.pdf) and a [blog post by Antonio Cocomazzi](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html)) and counting its invocations.
+ - **SuspendInfo** is a small tool that queries the state of suspension and freezing of processes and threads.
  - **InjectTool** is a program for injecting dummy threads (either directly or via a thread pool) into a process.
  - **SuspendMe** is a test application that demonstrates several approaches for bypassing suspension.
 
