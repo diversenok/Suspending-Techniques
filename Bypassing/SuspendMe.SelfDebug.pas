@@ -27,7 +27,7 @@ uses
   NtUtils.Processes.Create, NtUtils.Processes.Create.Native,
   NtUtils.Processes.Memory, NtUtils.Threads, NtUtils.Ldr, NtUtils.ImageHlp,
   NtUtils.Synchronization, NtUtils.Objects, NtUtils.Security.Acl,
-  DelphiUtils.AutoObject;
+  NtUtils.Console, DelphiUtils.AutoObject;
 
 function NtCreateThreadEx(
   out ThreadHandle: THandle;
@@ -85,10 +85,11 @@ begin
 end;
 
 // Make sure we avoid generating debug event as much as possible
-function SuppressDebugEvents: IAutoReleasable;
+procedure SuppressDebugEvents;
 var
   hxThread: IHandle;
   Module: TModuleEntry;
+  UndoProtection: IAutoReleasable;
 begin
   hxThread := nil;
 
@@ -103,8 +104,9 @@ begin
       PatchThreadCreation(Module.DllBase, Module.SizeOfImage);
 
   // Protecting the page with the MZ header blocks external thread creations
-  NtxProtectMemoryProcess(NtxCurrentProcess, @ImageBase, 1, PAGE_READONLY or
-    PAGE_GUARD, Result);
+  if NtxProtectMemoryProcess(NtxCurrentProcess, @ImageBase, 1, PAGE_READONLY or
+    PAGE_GUARD, UndoProtection).IsSuccess then
+    UndoProtection.AutoRelease := False;
 end;
 
 // The function we execute in a fork (since someone need to respond to the debug
@@ -150,23 +152,28 @@ type
 // All brought together
 function StartSelfDebugging;
 var
+  ObjAttributes: IObjectAttributes;
+  PreventDetaching: Boolean;
   hxSection, hxProcess: IHandle;
   Mapping: IMemory<PSharedContext>;
   Info: TProcessInfo;
 begin
-  SuppressDebugEvents;
+  write('Do you want to prevent detaching? [y/n]: ');
+  PreventDetaching := ReadBoolean;
 
-  // The fork will need a handle to the parent (us)
-  Result := NtxOpenCurrentProcess(hxProcess, MAXIMUM_ALLOWED, OBJ_INHERIT);
+  ObjAttributes := AttributeBuilder.UseAttributes(OBJ_INHERIT);
+
+  if PreventDetaching then
+    ObjAttributes := ObjAttributes.UseSecurity(RtlxAllocateDenyingSd);
+
+  // Create a shared a debug port
+  Result := NtxCreateDebugObject(hxDebugObject, False, ObjAttributes);
 
   if not Result.IsSuccess then
     Exit;
 
-  // We also need a shared a debug port with a denying DACL
-  Result := NtxCreateDebugObject(hxDebugObject, False, AttributeBuilder
-    .UseAttributes(OBJ_INHERIT)
-    .UseSecurity(RtlxAllocateDenyingSd)
-  );
+  // The fork will also need a handle to the parent (us)
+  Result := NtxOpenCurrentProcess(hxProcess, MAXIMUM_ALLOWED, OBJ_INHERIT);
 
   if not Result.IsSuccess then
     Exit;
@@ -185,6 +192,8 @@ begin
 
   Mapping.Data.Location := 'Main';
   Mapping.Data.Status := STATUS_UNSUCCESSFUL;
+
+  SuppressDebugEvents;
 
   // Start a fork that will attach as a debugger
   Result := RtlxCloneCurrentProcess(Info);
@@ -226,9 +235,10 @@ begin
   if not Result.IsSuccess then
     Exit;
 
-  // Prevent debug object's inheritance and closing
-  NtxSetFlagsHandle(hxDebugObject.Handle, False, True);
+  // Prevent debug object's inheritance and (optionally) closing
+  NtxSetFlagsHandle(hxDebugObject.Handle, False, PreventDetaching);
 
+  writeln;
   writeln('Note that we blocked Ctrl+C because new threads can deadlock us. ' +
     'You can still close the console or terminate the process from an ' +
     'external tool.');

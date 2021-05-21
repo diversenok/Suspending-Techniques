@@ -12,9 +12,7 @@ uses
 
 // Create multiple threads that will try to win the race condition within the
 // suspension mechanism
-function RaceSuspension(
-  UseStealthyMoode: Boolean
-): TNtxStatus;
+function RaceSuspension: TNtxStatus;
 
 implementation
 
@@ -55,7 +53,8 @@ begin
 
   Flags := THREAD_CREATE_FLAGS_CREATE_SUSPENDED;
 
-  if UseStealthyMoode then
+  write('Do you want to hide them from debuggers? [y/n]: ');
+  if ReadBoolean then
     Flags := Flags or THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH or
       THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER;
 

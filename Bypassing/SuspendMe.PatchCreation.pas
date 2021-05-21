@@ -13,9 +13,7 @@ uses
 
 // Patch local thread initialization to execute our payload. The payload resumes
 // the main thread and (optionally) detaches the process from its debugger.
-function HijackNewThreads(
-  DetachFromDebugger: Boolean
-): TNtxStatus;
+function HijackNewThreads: TNtxStatus;
 
 implementation
 
@@ -26,7 +24,6 @@ uses
 
 var
   hxMainThread: IHandle;
-  PerformDetach: Boolean;
 
 // The function to execute on thread creation
 function Payload: TNtxStatus;
@@ -57,21 +54,12 @@ begin
   end;
 
   // If we are frozen via a debug object, removing it will unfreeze us
-  if PerformDetach then
-  begin
-    Result := NtxOpenDebugObjectProcess(hxDbgObj, NtCurrentProcess);
+  Result := NtxOpenDebugObjectProcess(hxDbgObj, NtCurrentProcess);
 
-    if Result.Status = STATUS_PORT_NOT_SET then
-    begin
-      // Nothing to do
-      Result.Status := STATUS_SUCCESS;
-      Exit;
-    end
-    else if not Result.IsSuccess then
-      Exit;
-
-    Result := NtxDebugProcessStop(NtCurrentProcess, hxDbgObj.Handle);
-  end;
+  if Result.IsSuccess then
+    Result := NtxDebugProcessStop(NtCurrentProcess, hxDbgObj.Handle)
+  else if Result.Status = STATUS_PORT_NOT_SET then
+    Result.Status := STATUS_SUCCESS; // Nothing to do
 end;
 
 procedure RunPayload;
@@ -157,7 +145,6 @@ begin
   end;
 
   Code := pCode^;
-  PerformDetach := DetachFromDebugger;
 
   // Make it writable
   Result := NtxProtectMemoryProcess(NtxCurrentProcess, Code, SizeOf(TFarJump),

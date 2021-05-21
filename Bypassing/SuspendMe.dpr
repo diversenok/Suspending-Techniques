@@ -26,10 +26,8 @@ uses
 type
   TActionOptions = (
     aoRaceSuspension,
-    aoRaceSuspensionStealthy,
     aoUseThreadPool,
     aoHijackThreads,
-    aoHijackThreadsAndDetach,
     aoUseSelfDebug
   );
 
@@ -45,10 +43,8 @@ begin
   writeln;
   writeln('Available options:');
   writeln('[', Integer(aoRaceSuspension), '] Circumvent suspension using a race condition');
-  writeln('[', Integer(aoRaceSuspensionStealthy), '] Circumvent suspension using a race condition (hide threads from debugger)');
   writeln('[', Integer(aoUseThreadPool), '] Create a thread pool for someone to trigger');
-  writeln('[', Integer(aoHijackThreads), '] Hijack thread execution (resume on code injection)');
-  writeln('[', Integer(aoHijackThreadsAndDetach), '] Hijack thread execution (detach debuggers and resume on code injection)');
+  writeln('[', Integer(aoHijackThreads), '] Hijack thread execution (resume & detach debuggers on code injection)');
   writeln('[', Integer(aoUseSelfDebug), '] Start self-debugging so nobody else can attach');
 
   writeln;
@@ -57,14 +53,14 @@ begin
   writeln;
 
   case Action of
-    aoRaceSuspension, aoRaceSuspensionStealthy:
-      Result := RaceSuspension(Action = aoRaceSuspensionStealthy);
+    aoRaceSuspension:
+      Result := RaceSuspension;
 
     aoUseThreadPool:
       Result := UseThreadPool;
 
-    aoHijackThreads, aoHijackThreadsAndDetach:
-      Result := HijackNewThreads(Action = aoHijackThreadsAndDetach);
+    aoHijackThreads:
+      Result := HijackNewThreads;
 
     aoUseSelfDebug:
       Result := StartSelfDebugging(hxDebugObject);
