@@ -164,7 +164,7 @@ begin
   NtxFlushInstructionCache(NtCurrentProcess, Code, SizeOf(TFarJump));
 
   writeln('Now suspend the process and try injecting some code or inspecting ' +
-    'its list of threads in Process Explorer.');
+    'the list of threads in Process Explorer.');
 end;
 
 end.

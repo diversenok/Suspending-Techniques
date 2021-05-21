@@ -21,10 +21,12 @@ uses
   SuspendMe.RaceCondition in 'SuspendMe.RaceCondition.pas',
   SuspendMe.ThreadPool in 'SuspendMe.ThreadPool.pas',
   SuspendMe.PatchCreation in 'SuspendMe.PatchCreation.pas',
-  SuspendMe.SelfDebug in 'SuspendMe.SelfDebug.pas';
+  SuspendMe.SelfDebug in 'SuspendMe.SelfDebug.pas',
+  SuspendMe.DenyAccess in 'SuspendMe.DenyAccess.pas';
 
 type
   TActionOptions = (
+    aoAdjustSecurity,
     aoRaceSuspension,
     aoUseThreadPool,
     aoHijackThreads,
@@ -42,6 +44,8 @@ begin
   writeln('This is a demo application for bypassing process & thread suspension.');
   writeln;
   writeln('Available options:');
+  writeln;
+  writeln('[', Integer(aoAdjustSecurity), '] Protect the process with a denying security descriptor');
   writeln('[', Integer(aoRaceSuspension), '] Circumvent suspension using a race condition');
   writeln('[', Integer(aoUseThreadPool), '] Create a thread pool for someone to trigger');
   writeln('[', Integer(aoHijackThreads), '] Hijack thread execution (resume & detach debuggers on code injection)');
@@ -53,6 +57,9 @@ begin
   writeln;
 
   case Action of
+    aoAdjustSecurity:
+      ProtectProcessObject;
+
     aoRaceSuspension:
       Result := RaceSuspension;
 
