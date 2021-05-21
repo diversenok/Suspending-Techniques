@@ -9,6 +9,9 @@
         <Projects Include="Monitoring\ModeTransitionMonitor.dproj">
             <Dependencies/>
         </Projects>
+        <Projects Include="Monitoring\SuspendInfo.dproj">
+            <Dependencies/>
+        </Projects>
         <Projects Include="Injecting\InjectTool.dproj">
             <Dependencies/>
         </Projects>
@@ -41,6 +44,15 @@
     <Target Name="ModeTransitionMonitor:Make">
         <MSBuild Projects="Monitoring\ModeTransitionMonitor.dproj" Targets="Make"/>
     </Target>
+    <Target Name="SuspendInfo">
+        <MSBuild Projects="Monitoring\SuspendInfo.dproj"/>
+    </Target>
+    <Target Name="SuspendInfo:Clean">
+        <MSBuild Projects="Monitoring\SuspendInfo.dproj" Targets="Clean"/>
+    </Target>
+    <Target Name="SuspendInfo:Make">
+        <MSBuild Projects="Monitoring\SuspendInfo.dproj" Targets="Make"/>
+    </Target>
     <Target Name="InjectTool">
         <MSBuild Projects="Injecting\InjectTool.dproj"/>
     </Target>
@@ -60,13 +72,13 @@
         <MSBuild Projects="Bypassing\SuspendMe.dproj" Targets="Make"/>
     </Target>
     <Target Name="Build">
-        <CallTarget Targets="SuspendTool;ModeTransitionMonitor;InjectTool;SuspendMe"/>
+        <CallTarget Targets="SuspendTool;ModeTransitionMonitor;SuspendInfo;InjectTool;SuspendMe"/>
     </Target>
     <Target Name="Clean">
-        <CallTarget Targets="SuspendTool:Clean;ModeTransitionMonitor:Clean;InjectTool:Clean;SuspendMe:Clean"/>
+        <CallTarget Targets="SuspendTool:Clean;ModeTransitionMonitor:Clean;SuspendInfo:Clean;InjectTool:Clean;SuspendMe:Clean"/>
     </Target>
     <Target Name="Make">
-        <CallTarget Targets="SuspendTool:Make;ModeTransitionMonitor:Make;InjectTool:Make;SuspendMe:Make"/>
+        <CallTarget Targets="SuspendTool:Make;ModeTransitionMonitor:Make;SuspendInfo:Make;InjectTool:Make;SuspendMe:Make"/>
     </Target>
     <Import Project="$(BDS)\Bin\CodeGear.Group.Targets" Condition="Exists('$(BDS)\Bin\CodeGear.Group.Targets')"/>
 </Project>
