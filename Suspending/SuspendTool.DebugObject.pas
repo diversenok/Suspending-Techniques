@@ -24,7 +24,7 @@ implementation
 uses
   Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntdbg, Ntapi.ntpsapi, Ntapi.ntmmapi,
   NtUtils.Debug, NtUtils.Processes.Query, NtUtils.Processes.Memory,
-  NtUtils.Threads, NtUiLib.Errors;
+  NtUtils.Threads, NtUtils.Console, NtUiLib.Errors;
 
 function SuspendViaDebugMain;
 var
@@ -75,14 +75,23 @@ end;
 
 function FreezeViaDebugMain;
 var
+  ObjAttributes: IObjectAttributes;
   hxDebugObject, hxThread: IHandle;
   WaitState: TDbgxWaitState;
   WaitHandles: TDbgxHandles;
   DelayedAllowInjection: IAutoReleasable;
+  PreventInjection: Boolean;
 begin
-  // Use an exclusive handle so nobody can detach the target
-  Result := NtxCreateDebugObject(hxDebugObject, False,
-    AttributeBuilder.UseAttributes(OBJ_EXCLUSIVE));
+  write('Do you want to prevent detaching? [y/n]: ');
+  if ReadBoolean then
+    ObjAttributes := AttributeBuilder.UseAttributes(OBJ_EXCLUSIVE)
+  else
+    ObjAttributes := nil;
+
+  write('Do you want to prevent thread injection? [y/n]: ');
+  PreventInjection := ReadBoolean;
+
+  Result := NtxCreateDebugObject(hxDebugObject, False, ObjAttributes );
 
   if not Result.IsSuccess then
     Exit;
@@ -124,13 +133,16 @@ begin
   if not Result.IsSuccess then
     Exit;
 
-  // Prevent tools like Process Explorer from injecting hide-from-debugger
-  // threads (optional)
-  Result := PreventThreadInjection(hxProcess, DelayedAllowInjection);
+  if PreventInjection then
+  begin
+    // Prevent tools like Process Explorer from injecting hide-from-debugger
+    // threads (optional)
+    Result := PreventThreadInjection(hxProcess, DelayedAllowInjection);
 
-  if not Result.IsSuccess then
-    writeln('Cannot prevent thread injection: ', Result.Location, ': ',
-      RtlxNtStatusName(Result.Status));
+    if not Result.IsSuccess then
+      writeln('Cannot prevent thread injection: ', Result.Location, ': ',
+        RtlxNtStatusName(Result.Status));
+  end;
 
   write('The process was frozen via a debug object. Press enter to undo...');
   readln;
