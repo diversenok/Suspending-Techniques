@@ -10,6 +10,7 @@ program SuspendInfo;
 uses
   Winapi.WinNt,
   Ntapi.ntstatus,
+  Ntapi.ntseapi,
   Ntapi.ntpsapi,
   Ntapi.ntexapi,
   DelphiUtils.Arrays,
@@ -19,6 +20,7 @@ uses
   NtUtils.Processes.Query,
   NtUtils.Processes.Snapshots,
   NtUtils.Threads,
+  NtUtils.Tokens,
   NtUtils.SysUtils,
   NtUtils.Console,
   NtUiLib.Errors;
@@ -193,6 +195,9 @@ begin
 
   if not Result.IsSuccess then
     Exit;
+
+  NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+    SE_PRIVILEGE_ENABLED, True);
 
   writeln('-------- Process --------');
   writeln('Process: ', Process.Basic.ProcessID, ' [', Process.ImageName, ']');

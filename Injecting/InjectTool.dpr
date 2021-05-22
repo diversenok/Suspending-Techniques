@@ -11,11 +11,13 @@ program InjectTool;
 
 uses
   Ntapi.ntstatus,
+  Ntapi.ntseapi,
   Ntapi.ntpsapi,
   NtUtils,
   NtUtils.SysUtils,
   NtUtils.Processes,
   NtUtils.Processes.Snapshots,
+  NtUtils.Tokens,
   NtUtils.Console,
   NtUiLib.Errors,
   InjectTool.ThreadPool in 'InjectTool.ThreadPool.pas',
@@ -39,6 +41,7 @@ begin
   writeln('This is a program for testing thread creation.');
   writeln;
   writeln('Available options:');
+  writeln;
   writeln('[', Integer(iaInjectThread) ,'] Create a thread');
   writeln('[', Integer(iaInjectStealty) ,'] Create a thread (hide from DLLs & debuggers)');
   writeln('[', Integer(iaTriggerThreadPool) ,'] Trigger thread pool''s thread creation');
@@ -62,6 +65,9 @@ begin
   write('PID or a unique image name: ');
   ProcessName := ReadString(False);
   writeln;
+
+  NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+    SE_PRIVILEGE_ENABLED, True);
 
   if RtlxStrToInt(ProcessName, PID) then
     Result := NtxOpenProcess(hxProcess, PID, AccessMask)

@@ -10,9 +10,11 @@ program SuspendTool;
 
 uses
   Ntapi.ntstatus,
+  Ntapi.ntseapi,
   Ntapi.ntpsapi,
   NtUtils,
   NtUtils.Threads,
+  NtUtils.Tokens,
   NtUtils.Processes,
   NtUtils.Processes.Snapshots,
   NtUtils.SysUtils,
@@ -78,6 +80,10 @@ begin
   write('PID or a unique image name: ');
   ProcessName := ReadString(False);
   writeln;
+
+  // Enable the Debug Privilege if available
+  NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+    SE_PRIVILEGE_ENABLED, True);
 
   if RtlxStrToInt(ProcessName, PID) then
     Result := NtxOpenProcess(hxProcess, PID, AccessMask)
