@@ -26,12 +26,14 @@ If you want to know more technical details regarding these mechanisms, check out
 2. *What are their benefits and shortcomings?*
 3. *How might someone bypass them?*
 
-# Tools
+# Tools Overview
+
+*For more details, navigate to the [corresponding section](#tools). To download the tools, see the [releases page](https://github.com/diversenok/Suspending-Techniques/releases).*
 
 I wrote several tools that we can use to experiment and reproduce my observations:
 
  - **SuspendTool** is a program that can suspend/freeze processes using several different methods. I will cover the techniques it implements in the next section.
- - **ModeTransitionMonitor** is a program that detects all kernel-to-user mode transitions happening within a specific process. It achieves this by installing the Instrumentation Callback (see [slides by Alex Ionescu](https://github.com/ionescu007/HookingNirvana/blob/9e4e8e326b9dfd10a7410986486e567e5980f913/Esoteric%20Hooks.pdf) and a [blog post by Antonio Cocomazzi](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html)) and counting its invocations.
+ - **ModeTransitionMonitor** is a program that detects all kernel-to-user mode transitions happening within a specific process. If you are interested in how it works, check out the [dedicated section](#modetransitionmonitor).
  - **SuspendInfo** is a small tool that queries the state of suspension and freezing.
  - **InjectTool** is a program for injecting dummy threads (either directly or via a thread pool) into a process.
  - **SuspendMe** is a test application that demonstrates several approaches for bypassing suspension.
@@ -188,3 +190,83 @@ Pros                   | Cons
 Freezes future threads | Requires keeping a handle open
 _-_                    | Requires Windows Insider Preview
 
+# Tools
+
+You can download the tools from the [releases page](https://github.com/diversenok/Suspending-Techniques/releases).
+
+## SuspendTool
+
+The tool implements all of the techniques for suspending and freezing processes I discuss above.
+
+```text
+Available options:
+
+[0] Enumerate & suspend all threads
+[1] Enumerate & resume all threads
+[2] Suspend via NtSuspendProcess
+[3] Resume via NtResumeProcess
+[4] Suspend via a debug object
+[5] Freeze via a debug object
+[6] Freeze via a job object
+[7] Freeze via a state change object
+```
+
+## SuspendMe
+
+This program tries its best to bypass or at least counteract specific suspension methods.
+
+```text
+Available options:
+
+[0] Protect the process with a denying security descriptor
+[1] Circumvent suspension using a race condition
+[2] Create a thread pool for someone to trigger
+[3] Hijack thread execution (resume & detach debuggers on code injection)
+[4] Start self-debugging so nobody else can attach
+```
+
+## InjectTool
+
+You can use this tool to check how a specific technique responds to thread creation. Additionally, you can use it to help the **SuspendMe** tool escape when it works in thread-hijacking mode. When used for direct injection, the thread will execute [`NtAlertThread`](https://github.com/processhacker/processhacker/blob/d6e5d36d2c6c2523d55a6f07a6447bf9eca569db/phnt/include/ntpsapi.h#L1445-L1450). I chose this function because it matches the expected prototype and exits immediately.
+
+```text
+Available options:
+
+[0] Create a thread
+[1] Create a thread (hide from DLLs & debuggers)
+[2] Trigger thread pool's thread creation
+```
+
+## ModeTransitionMonitor
+
+Process statistics don't provide enough information to reliably identify user-mode code execution. **UserTime** is not precise enough to detect running a single line of code, while **CycleTime** does not distinguish between user and kernel modes. Of course, if a program spins in a tight loop and consumes 100% of the CPU, we don't need any sophisticated tricks. As for the rest, I wrote a program that installs the **Instrumentation Callback** within the target process (see [slides by Alex Ionescu](https://github.com/ionescu007/HookingNirvana/blob/9e4e8e326b9dfd10a7410986486e567e5980f913/Esoteric%20Hooks.pdf) and a [blog post by Antonio Cocomazzi](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html)). The system invokes this callback every time it returns from the kernel mode, making it possible to identify when any wait completes. As a bonus, we can record return addresses and get a better insight into what happens within the target.
+
+Technically, we need the Debug privilege to install the instrumentation callback for another process. But since setting it on the current one does not require anything, we can easily bypass this requirement by injecting a thread that installs the callback on the target's behalf.
+
+```text
+Do you want to capture return addresses? [y/n]: y
+Loading symbols...
+
+Target's PID or a unique image name: SuspendMe
+Setting up monitoring...
+
+Transitions / second: 0
+
+Transitions / second: 6
+  ntdll.dll!ZwQueryInformationThread+0x14 x 3 times
+  ntdll.dll!ZwAlertThread+0x14
+  ntdll.dll!NtTestAlert+0x14
+  ntdll.dll!LdrInitializeThunk
+
+Transitions / second: 0
+```
+
+## SuspendInfo
+
+**SuspendInfo** is a small program that inspects and displays suspension/freezing info for all threads in a process.
+
+# Conclusion
+
+I was surprised to learn that the most commonly used techniques utilized by both first- and third-party tools have reliability issues that allow a specially crafted program to circumvent them. We saw that Microsoft takes the steps in the right direction: first, they introduced job-based deep-freezing, then significantly improved ordinary freezing and included a great alternative solution. The debugging-based technique turned out to be full of peculiar pitfalls and weaknesses, but with some tweaking, it might a better option than using `NtSuspendProcess` in tools like Process Hacker.
+
+Feel free to use the [Discussions page](https://github.com/diversenok/Suspending-Techniques/discussions) for sharing your ideas on improving, bypassing, or utilizing suspension techniques.
