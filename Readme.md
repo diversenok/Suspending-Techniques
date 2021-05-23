@@ -38,6 +38,14 @@ I wrote several tools that we can use to experiment and reproduce my observation
 
 # Techniques
 
+ - [Snapshot & Suspend Threads (Not Covered)](#snapshot--suspend-threads-not-covered)
+ - [Enumerate & Suspend Threads](#enumerate--suspend-threads)
+ - [Suspend via NtSuspendProcess](#suspend-via-ntsuspendprocess)
+ - [Suspend via a Debug Object](#suspend-via-a-debug-object)
+ - [Freeze via a Debug Object with Thread Injection](#freeze-via-a-debug-object-with-thread-injection)
+ - [Freezing via a Job Object](#freezing-via-a-job-object)
+ - [Freezing via a State Change Object](#freezing-via-a-state-change-object)
+
 ## Snapshot & Suspend Threads (Not Covered)
 
 ### Idea
