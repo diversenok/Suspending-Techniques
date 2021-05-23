@@ -123,3 +123,22 @@ Pros                   | Cons
 Freezes future threads | Requires keeping a handle open 
 _-_                    | Does not prevent race conditions
 
+## Freeze via a Debug Object with Thread Injection
+
+### Idea
+So, if the thread creation event is so helpful, why don't we generate one ourselves? We can inject and immediately terminate a dummy suspended thread to freeze the target. Technically, we can even avoid opening the target for `PROCESS_CREATE_THREAD` access because the kernel gives us a full-access handle after we acknowledge the process creation notification. Additionally, we can include a few other improvements, such as protecting the debug object (so nobody can detach it) and blocking remote thread creation (to mitigate the impact of injected hidden threads).
+
+Yes, Process Explorer does hide the threads it injects from debuggers but also appears to be the only tool I know that does that. So, unless you are running Insider Preview builds, a program might exploit them to execute arbitrary code from a frozen process. I noticed that creating remote threads from user mode always looks up at the first page of the process's image (the one with the MZ header), so protecting it for the duration of suspension does the trick.
+
+### Bypasses
+Finally, we are getting somewhere: there is little a program can do to bypass this technique. It successfully prevents race conditions and the thread pool-based bypass. As far as I can tell, the only options that still might work are the following:
+
+1. Protect the process and thread objects with a denying DACL. This approach, obviously, works against unprivileged tools but won't interfere with administrators that have the Debug privilege.
+2. Occupying the debug port beforehand and thus, preventing anyone from using it. **SuspendMe** combines it with injection prevention, so freezing it via debugging would require overcoming both obstacles.
+3. Other techniques that can prevent debuggers from attaching or injecting threads.
+
+### Overview
+Pros                   | Cons
+---------------------- | ----
+Freezes future threads | Requires keeping a handle open 
+
