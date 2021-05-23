@@ -41,7 +41,7 @@ var
 begin
   NtxSetNameThread(NtCurrentThread, 'Main Thread');
 
-  writeln('This is a demo application for bypassing process & thread suspension.');
+  writeln('This is a demo application for bypassing process suspension and freezing.');
   writeln;
   writeln('Available options:');
   writeln;

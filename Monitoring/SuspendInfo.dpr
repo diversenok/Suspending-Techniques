@@ -188,7 +188,7 @@ var
   Process: TProcessEntry;
   i: Integer;
 begin
-  writeln('This is a program for querying process and thread suspension.');
+  writeln('This is a program for querying process and thread suspension state.');
   writeln;
 
   Result := ChooseProcess(Process);

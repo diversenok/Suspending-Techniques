@@ -77,13 +77,12 @@ begin
   if CaptureTraces then
   begin
     writeln('Loading symbols...');
-    writeln;
     InitializeSymbols;
   end;
 
+  writeln;
   write('Target''s PID or a unique image name: ');
   ProcessName := ReadString(False);
-  writeln;
 
   // Open the target
   if RtlxStrToInt(ProcessName, PID) then
