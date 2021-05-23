@@ -16,7 +16,7 @@ The second mechanism we are going to cover here is called ***freezing***. Overal
 
 Finally, starting from Windows 8, there is ***deep freezing***, a completely per-process concept controlled by a dedicated flag in the `KPROCESS` structure. Unlike ordinary freezing, it guarantees that new threads created in a deep-frozen process immediately become frozen as well. This feature proves to be the most reliable option when it comes to preventing code execution.
 
-Interestingly, Microsoft recently introduced some changes to these mechanisms that made freezing and deep freezing indistinguishable, as far as my user-mode experiments can tell. It happened somewhere between Insider builds 20231 and 21286. If you are using Windows Insider Preview, you'll notice that injecting threads into a frozen process freezes them as if the process is actually deep-frozen. While it yields some of the demonstrations I prepared less exciting, it does make multiple techniques more reliable.
+Interestingly, Microsoft recently introduced some changes to these mechanisms that made freezing and deep freezing indistinguishable, as far as my user-mode experiments can tell. It happened somewhere between Insider builds 20231 and 21286. If you are using Windows Insider, you'll notice that injecting threads into a frozen process freezes them as if the process is actually deep-frozen. While it yields some of the demonstrations I prepared less exciting, it does make multiple techniques more reliable.
 
 If you want to know more technical details regarding these mechanisms, check out `PsSuspendThread` and `PsFreezeProcess` with their cross-references in ntoskrnl, and read [Windows Internals](https://books.google.nl/books?id=V4kjnwEACAAJ).
 
@@ -32,7 +32,7 @@ I wrote several tools that we can use to experiment and reproduce my observation
 
  - **SuspendTool** is a program that can suspend/freeze processes using several different methods. I will cover the techniques it implements in the next section.
  - **ModeTransitionMonitor** is a program that detects all kernel-to-user mode transitions happening within a specific process. It achieves this by installing the Instrumentation Callback (see [slides by Alex Ionescu](https://github.com/ionescu007/HookingNirvana/blob/9e4e8e326b9dfd10a7410986486e567e5980f913/Esoteric%20Hooks.pdf) and a [blog post by Antonio Cocomazzi](https://splintercod3.blogspot.com/p/weaponizing-mapping-injection-with.html)) and counting its invocations.
- - **SuspendInfo** is a small tool that queries the state of suspension and freezing of processes and threads.
+ - **SuspendInfo** is a small tool that queries the state of suspension and freezing.
  - **InjectTool** is a program for injecting dummy threads (either directly or via a thread pool) into a process.
  - **SuspendMe** is a test application that demonstrates several approaches for bypassing suspension.
 
@@ -152,7 +152,6 @@ Before we can freeze a process, we need to put it into a job using [`NtAssignPro
 As you can guess, this technique also requires keeping a handle open. While we already encountered a similar problem with debugging, here it's more severe: closing the last handle to a frozen job makes it impossible to unfreeze the processes within it. The system does not expose any functions for opening a job aside from doing it by name, and names get disassociated with the last closed handle. Given enough access, we can, of course, store a backup copy in the target's handle table to prevent this scenario from happening.
 
 ### Bypasses
-
 Deep freezing is designed to provide substantial reliability guarantees. I didn't manage to find any weaknesses that allow the process to execute code in a deep-frozen state, so there aren't many options left. Looking into the possibilities for preventing freezing from happening, we can try the following ideas:
 
 1. Protect the process and thread objects with a denying DACL. Again, it won't stop administrators that have the Debug privilege.
@@ -160,5 +159,24 @@ Deep freezing is designed to provide substantial reliability guarantees. I didn'
 
 ### Overview
 Pros                   | Cons
----------------------- | ----
+-----------------------| ----
 Freezes future threads | Requires keeping a handle open
+_-_                    | Requires Windows 8 and above
+_-_                    | Permanently assigns the process to a job
+
+## Freezing via a State Change Object
+
+### Idea
+Suspending threads and processes via functions like `NtSuspendThread` and `NtSuspendProcess` looks somewhat similar to synchronizing with external resources: it requires an explicit release operation. What happens when a process that, say, acquired a shared mutex crashes unexpectedly? The system releases the ownership automatically when it destroys the process's handle table. Despite similarities, it does not happen with acquired suspension. Not long ago, Microsoft, apparently, decided to address this issue by introducing an alternative approach for dealing with suspension. [Windows Insider Preview 20190 introduced](https://twitter.com/hFireF0X/status/1295995982409236480) a new **ProcessStateChange** type for kernel objects, followed by a similar **ThreadStateChange** that [appeared in 20226](https://twitter.com/hFireF0X/status/1311528429112754176). The new syscalls [documented here](https://windows-internals.com/thread-and-process-state-change/) tie suspend and resume actions to these objects. Because these objects record performed operations, the system can undo them automatically when it destroys the object. In practice, you call `NtCreateProcessStateChange`, then apply suspension via `NtChangeProcessState`. To resume the process, either call `NtCreateProcessStateChange` again specifying the corresponding action or merely close the object and let the system handle everything on its own.
+
+Interestingly, this functionality initially worked on top of the same routines that power the ordinary suspension (`PsSuspendProcess` and `PsSuspendThread`) and, therefore, was vulnerable to the entire spectrum of attacks we discussed earlier. However, somewhere between builds 20231 and 21286, they replaced process-wide suspension with freezing (via `PsFreezeProcess`), making it significantly more reliable. Considering that Microsoft made freezing and deep-freezing essentially equivalent around the same time, this technique has great potential for powering system tools that require high reliability in the future.
+
+### Bypasses
+Yet again, out of the methods I included with the repository, nothing really breaks freezing in a form implemented in recent Insider builds. There, of course, might be something I missed that still differentiates freezing from deep-freezing and, therefore, allows creating active threads in a frozen process. Although, I don't see any working options other than the most boring one we already mentioned multiple times: preventing the process from being opened by an unprivileged caller with a denying DACL.
+
+### Overview
+Pros                   | Cons
+-----------------------| ----
+Freezes future threads | Requires keeping a handle open
+_-_                    | Requires Windows Insider Preview
+

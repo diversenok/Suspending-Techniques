@@ -44,6 +44,8 @@ var
   PID: Cardinal;
   JobInfo: TJobObjectFreezeInformation;
 begin
+  writeln('This program implements various techniques for suspending processes.');
+  writeln;
   writeln('Available options:');
   writeln;
   writeln('[', Integer(saSuspendThreads), '] Enumerate & suspend all threads');
@@ -53,7 +55,7 @@ begin
   writeln('[', Integer(saSuspendViaDebug), '] Suspend via a debug object');
   writeln('[', Integer(saFreezeViaDebug), '] Freeze via a debug object');
   writeln('[', Integer(saFreezeViaJob), '] Freeze via a job object');
-  writeln('[', Integer(saFreezeViaState), '] Suspend via a state change object');
+  writeln('[', Integer(saFreezeViaState), '] Freeze via a state change object');
   writeln;
   write('Your choice: ');
   Cardinal(Action) := ReadCardinal(0, Cardinal(High(TSuspendAction)));
