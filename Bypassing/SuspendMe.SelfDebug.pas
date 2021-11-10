@@ -8,7 +8,7 @@ unit SuspendMe.SelfDebug;
 interface
 
 uses
-  Winapi.WinNt, NtUtils;
+  Ntapi.WinNt, NtUtils;
 
 const
   DEFAULT_SELF_DEBUG_TIMEOUT = 8000 * MILLISEC;
@@ -23,11 +23,11 @@ implementation
 
 uses
   Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntrtl, Ntapi.ntmmapi, Ntapi.ntpsapi,
-  NtUtils.Debug, NtUtils.Processes, NtUtils.Sections, NtUtils.SysUtils,
-  NtUtils.Processes.Create, NtUtils.Processes.Create.Native,
-  NtUtils.Processes.Memory, NtUtils.Threads, NtUtils.Ldr, NtUtils.ImageHlp,
+  Ntapi.ntldr, NtUtils.Debug, NtUtils.Processes, NtUtils.Sections,
+  NtUtils.SysUtils, NtUtils.Processes.Create, NtUtils.Processes.Create.Native,
+  NtUtils.Memory, NtUtils.Threads, NtUtils.Ldr, NtUtils.ImageHlp,
   NtUtils.Synchronization, NtUtils.Objects, NtUtils.Security.Acl,
-  NtUtils.Console, DelphiUtils.AutoObject;
+  NtUtils.Console, DelphiUtils.AutoObjects;
 
 function NtCreateThreadEx(
   out ThreadHandle: THandle;
@@ -56,7 +56,7 @@ exports
 
 // Make sure local libraries always use our version of thread creation that
 // toggles the hide-from-debugger flag
-procedure PatchThreadCreation(ModuleBase: PByte; Size: Cardinal);
+procedure PatchThreadCreation(ModuleBase: PDllBase; Size: Cardinal);
 var
   Import: TArray<TImportDllEntry>;
   i, j: Integer;
@@ -75,9 +75,10 @@ begin
           Import[i].Functions[j].Name, 'NtCreateThreadEx') <> 0)  then
           Continue;
 
-        IAT := ModuleBase + Import[i].IAT + Cardinal(j) * SizeOf(Pointer);
+        IAT := PByte(ModuleBase) + Import[i].IAT +
+          Cardinal(j) * SizeOf(Pointer);
 
-        if NtxProtectMemoryProcess(NtxCurrentProcess, IAT, SizeOf(Pointer),
+        if NtxProtectMemoryAuto(NtxCurrentProcess, IAT, SizeOf(Pointer),
           PAGE_READWRITE, UndoProtection).IsSuccess then
           Pointer(IAT^) := @NtCreateThreadEx;
       end;
@@ -100,11 +101,11 @@ begin
 
   // Patch local IATs to use our thread creation that suppresses debug events
   for Module in LdrxEnumerateModules do
-    if Module.DllBase <> @ImageBase then
+    if Module.DllBase <> PDllBase(@ImageBase) then
       PatchThreadCreation(Module.DllBase, Module.SizeOfImage);
 
   // Protecting the page with the MZ header blocks external thread creations
-  if NtxProtectMemoryProcess(NtxCurrentProcess, @ImageBase, 1, PAGE_READONLY or
+  if NtxProtectMemoryAuto(NtxCurrentProcess, @ImageBase, 1, PAGE_READONLY or
     PAGE_GUARD, UndoProtection).IsSuccess then
     UndoProtection.AutoRelease := False;
 end;

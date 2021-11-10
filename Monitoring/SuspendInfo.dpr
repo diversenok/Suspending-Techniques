@@ -8,16 +8,16 @@ program SuspendInfo;
 {$R *.res}
 
 uses
-  Winapi.WinNt,
+  Ntapi.WinNt,
   Ntapi.ntstatus,
   Ntapi.ntseapi,
   Ntapi.ntpsapi,
   Ntapi.ntexapi,
+  Ntapi.Versions,
   DelphiUtils.Arrays,
   NtUtils,
-  NtUtils.Version,
   NtUtils.Processes,
-  NtUtils.Processes.Query,
+  NtUtils.Processes.Info,
   NtUtils.Processes.Snapshots,
   NtUtils.Threads,
   NtUtils.Tokens,
@@ -196,7 +196,7 @@ begin
   if not Result.IsSuccess then
     Exit;
 
-  NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+  NtxAdjustPrivilege(NtxCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
     SE_PRIVILEGE_ENABLED, True);
 
   writeln('-------- Process --------');

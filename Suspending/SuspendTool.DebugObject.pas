@@ -23,7 +23,7 @@ implementation
 
 uses
   Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntdbg, Ntapi.ntpsapi, Ntapi.ntmmapi,
-  NtUtils.Debug, NtUtils.Processes.Query, NtUtils.Processes.Memory,
+  NtUtils.Debug, NtUtils.Processes.Info, NtUtils.Memory,
   NtUtils.Threads, NtUtils.Console, NtUiLib.Errors;
 
 function SuspendViaDebugMain;
@@ -69,7 +69,7 @@ begin
     Exit;
 
   // Protect the first page
-  Result := NtxProtectMemoryProcess(hxProcess, ImageBase, 1, PAGE_READONLY or
+  Result := NtxProtectMemoryAuto(hxProcess, ImageBase, 1, PAGE_READONLY or
     PAGE_GUARD, Reverter);
 end;
 

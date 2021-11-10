@@ -8,7 +8,7 @@ unit Instrumentation.Monitor;
 interface
 
 uses
-  Winapi.WinNt, NtUtils, DelphiUtils.AutoObject;
+  Ntapi.WinNt, NtUtils, DelphiUtils.AutoObjects;
 
 const
   TRACE_MAGNITUDE_LOW = 8;     // record 256 addresses or 2 KiB of data
@@ -46,7 +46,7 @@ implementation
 
 uses
   Ntapi.crt, Ntapi.ntstatus, Ntapi.ntmmapi, NtUtils.Shellcode,
-  NtUtils.Processes, NtUtils.Processes.Memory, NtUtils.Processes.Query.Remote;
+  NtUtils.Processes, NtUtils.Memory, NtUtils.Processes.Info.Remote;
 
 // The shellcode for injecting into the target process
 // Note: be consistent with the definition of the structure
@@ -88,7 +88,7 @@ var
   Reverter: IAutoReleasable;
 begin
   // Make sure the memory is writable
-  Result := NtxProtectMemoryProcess(NtxCurrentProcess, @SyscallMonitor,
+  Result := NtxProtectMemoryAuto(NtxCurrentProcess, @SyscallMonitor,
     Sizeof(TSyscallMonitor), PAGE_EXECUTE_READWRITE, Reverter);
 
   if not Result.IsSuccess then

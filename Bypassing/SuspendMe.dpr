@@ -10,7 +10,7 @@ program SuspendMe;
 {$R *.res}
 
 uses
-  Winapi.WinNt,
+  Ntapi.WinNt,
   Ntapi.ntstatus,
   Ntapi.ntpsapi,
   NtUtils,

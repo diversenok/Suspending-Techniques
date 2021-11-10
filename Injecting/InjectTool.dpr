@@ -66,7 +66,7 @@ begin
   ProcessName := ReadString(False);
   writeln;
 
-  NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+  NtxAdjustPrivilege(NtxCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
     SE_PRIVILEGE_ENABLED, True);
 
   if RtlxStrToInt(ProcessName, PID) then

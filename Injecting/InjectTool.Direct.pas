@@ -18,8 +18,8 @@ function InjectDummyThread(
 implementation
 
 uses
-  Winapi.WinNt, Ntapi.ntdef, Ntapi.ntpsapi, Ntapi.Ntstatus, NtUtils.Threads,
-  Ntutils.Processes.Query, NtUtils.ShellCode, NtUtils.Synchronization;
+  Ntapi.WinNt, Ntapi.ntdef, Ntapi.ntpsapi, Ntapi.Ntstatus, NtUtils.Threads,
+  Ntutils.Processes.Info, NtUtils.ShellCode, NtUtils.Synchronization;
 
 function InjectDummyThread;
 var

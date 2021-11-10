@@ -18,7 +18,7 @@ uses
   NtUtils.Processes,
   NtUtils.Processes.Snapshots,
   NtUtils.SysUtils,
-  NtUtils.Job,
+  NtUtils.Jobs,
   NtUtils.Console,
   NtUiLib.Errors,
   SuspendTool.DebugObject in 'SuspendTool.DebugObject.pas';
@@ -84,7 +84,7 @@ begin
   writeln;
 
   // Enable the Debug Privilege if available
-  NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+  NtxAdjustPrivilege(NtxCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
     SE_PRIVILEGE_ENABLED, True);
 
   if RtlxStrToInt(ProcessName, PID) then

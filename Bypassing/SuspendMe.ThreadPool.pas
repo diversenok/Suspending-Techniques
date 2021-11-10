@@ -32,7 +32,7 @@ var
   i: Integer;
 begin
   Inc(Count);
-  Name := 'Thread pool''s thread #' + RtlxIntToStr(Count);
+  Name := 'Thread pool''s thread #' + RtlxUIntToStr(Count);
   NtxSetNameThread(NtCurrentThread, Name);
 
   writeln;
@@ -70,7 +70,7 @@ begin
     Exit;
 
   writeln('Current PID: ', NtCurrentProcessId);
-  writeln('Thread pool''s handle: ', RtlxIntToStr(hxWorkerFactory.Handle, 16));
+  writeln('Thread pool''s handle: ', RtlxUIntPtrToStr(hxWorkerFactory.Handle, 16));
   writeln;
   writeln('Now try to trigger thread creation. You will see a message on success.');
 end;

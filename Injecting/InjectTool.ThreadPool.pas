@@ -78,7 +78,7 @@ begin
   writeln('Which thread pool should we work with?');
   for i := 0 to High(ThreadPools) do
   begin
-    write('[', i, '] Handle ', RtlxIntToStr(ThreadPools[i].HandleEntry.
+    write('[', i, '] Handle ', RtlxUIntPtrToStr(ThreadPools[i].HandleEntry.
       HandleValue, 16), ' ');
 
     if ThreadPools[i].Status.IsSuccess then

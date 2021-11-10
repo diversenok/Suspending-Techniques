@@ -74,7 +74,7 @@ begin
       Pointer(i), Flags);
 
     if Result.IsSuccess then
-      NtxSetNameThread(Threads[i].Handle, 'Resumer Thread #' + RtlxIntToStr(i))
+      NtxSetNameThread(Threads[i].Handle, 'Resumer Thread #' + RtlxUIntToStr(i))
     else
       Exit;
   end;

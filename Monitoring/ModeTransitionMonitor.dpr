@@ -9,20 +9,20 @@ program ModeTransitionMonitor;
 {$R *.res}
 
 uses
-  Winapi.WinNt,
+  Ntapi.WinNt,
   Ntapi.ntstatus,
   Ntapi.ntpsapi,
   Ntapi.ntseapi,
-  DelphiUtils.AutoObject,
+  Ntapi.Versions,
+  DelphiUtils.AutoObjects,
   NtUtils,
   NtUtils.SysUtils,
   NtUtils.Processes,
   NtUtils.Processes.Snapshots,
-  NtUtils.Processes.Query,
-  NtUtils.Processes.Query.Remote,
+  NtUtils.Processes.Info,
+  NtUtils.Processes.Info.Remote,
   NtUtils.Synchronization,
   NtUtils.Tokens,
-  NtUtils.Version,
   NtUtils.Console,
   NtUiLib.Errors,
   Instrumentation.Monitor in 'Instrumentation.Monitor.pas',
@@ -61,7 +61,7 @@ begin
   // Try enabling the debug privilege. Note that it is not strictly necessary
   // starting from Windows 8.1 since we can set the instrumentation callback
   // on the target's behalf by injecting a thread.
-  Result := NtxAdjustPrivilege(NtCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
+  Result := NtxAdjustPrivilege(NtxCurrentEffectiveToken, SE_DEBUG_PRIVILEGE,
     SE_PRIVILEGE_ENABLED, RtlOsVersion >= OsWin81);
 
   if not Result.IsSuccess then

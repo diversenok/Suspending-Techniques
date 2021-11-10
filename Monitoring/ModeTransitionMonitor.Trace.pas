@@ -22,7 +22,7 @@ procedure PrintFreshTraces(
 implementation
 
 uses
-  Ntapi.ntdef, NtUtils.Ldr, NtUtils.SysUtils, DelphiUtils.Arrays,
+  Ntapi.ntdef, Ntapi.ntldr, NtUtils.Ldr, NtUtils.SysUtils, DelphiUtils.Arrays,
   NtUtils.ImageHlp.DbgHelp;
 
 var
@@ -31,7 +31,7 @@ var
 
 procedure InitializeSymbols;
 var
-  hWin32u: HMODULE;
+  hWin32u: PDllBase;
 begin
   // We expect system call to be executed and exported from two libraries.
   // We can use local module enumeration since they are Known Dlls, so they
@@ -60,7 +60,7 @@ begin
       UIntPtr(Address) - UIntPtr(Win32Module.DllBase)).ToString
 
   else
-    Result := RtlxInt64ToStr(UIntPtr(Address), 16);
+    Result := RtlxPtrToStr(Address);
 end;
 
 procedure PrintFreshTraces;
@@ -102,11 +102,11 @@ begin
     else
       writeln;
 
-    if i > 6 then
+{    if i > 6 then
     begin
       writeln('  ...');
       Break;
-    end;
+    end;}
   end;
 end;
 

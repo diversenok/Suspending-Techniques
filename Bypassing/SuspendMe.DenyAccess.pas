@@ -16,7 +16,7 @@ function ProtectProcessObject: TNtxStatus;
 implementation
 
 uses
-  Winapi.WinNt, Ntapi.ntpsapi, NtUtils.Objects, NtUtils.Threads,
+  Ntapi.WinNt, Ntapi.ntpsapi, NtUtils.Objects, NtUtils.Threads,
   NtUtils.Security.Acl;
 
 function ProtectProcessObject;

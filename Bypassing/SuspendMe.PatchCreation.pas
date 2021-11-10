@@ -18,9 +18,9 @@ function HijackNewThreads: TNtxStatus;
 implementation
 
 uses
-  Winapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntrtl, Ntapi.ntmmapi,
+  Ntapi.WinNt, Ntapi.ntdef, Ntapi.ntstatus, Ntapi.ntrtl, Ntapi.ntmmapi,
   DelphiApi.Reflection, DelphiUtils.ExternalImport, NtUtils.Processes,
-  NtUtils.Threads, NtUtils.Processes.Memory, NtUtils.Debug, NtUiLib.Errors;
+  NtUtils.Threads, NtUtils.Memory, NtUtils.Debug, NtUiLib.Errors;
 
 var
   hxMainThread: IHandle;
@@ -147,7 +147,7 @@ begin
   Code := pCode^;
 
   // Make it writable
-  Result := NtxProtectMemoryProcess(NtxCurrentProcess, Code, SizeOf(TFarJump),
+  Result := NtxProtectMemoryAuto(NtxCurrentProcess, Code, SizeOf(TFarJump),
     PAGE_EXECUTE_READWRITE, UndoProtection);
 
   if not Result.IsSuccess then
