@@ -26,7 +26,6 @@ uses
 type
   TInjectionAction = (
     iaInjectThread,
-    iaInjectStealty,
     iaTriggerThreadPool
   );
 
@@ -37,22 +36,42 @@ var
   PID: Cardinal;
   Action: TInjectionAction;
   AccessMask: TProcessAccessMask;
+  ThreadFlags: TThreadCreateFlags;
 begin
   writeln('This is a program for testing thread creation.');
   writeln;
   writeln('Available options:');
   writeln;
   writeln('[', Integer(iaInjectThread) ,'] Create a thread');
-  writeln('[', Integer(iaInjectStealty) ,'] Create a thread (hide from DLLs & debuggers)');
   writeln('[', Integer(iaTriggerThreadPool) ,'] Trigger thread pool''s thread creation');
   writeln;
   write('Your choice: ');
   Cardinal(Action) := ReadCardinal(0, Cardinal(High(TInjectionAction)));
+  ThreadFlags := 0;
   writeln;
 
   case Action of
-    iaInjectThread, iaInjectStealty:
+    iaInjectThread:
+    begin
       AccessMask := PROCESS_CREATE_THREAD or PROCESS_QUERY_LIMITED_INFORMATION;
+
+      write('Do you want to hide it from DLLs? [y/n]: ');
+
+      if ReadBoolean then
+        ThreadFlags := ThreadFlags or THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH;
+
+      write('Do you want to hide it from debuggers? [y/n]: ');
+
+      if ReadBoolean then
+        ThreadFlags := ThreadFlags or THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER;
+
+      write('Do you want it to bypass process freezing? [y/n]: ');
+
+      if ReadBoolean then
+        ThreadFlags := ThreadFlags or THREAD_CREATE_FLAGS_BYPASS_PROCESS_FREEZE;
+
+      writeln;
+    end;
 
     iaTriggerThreadPool:
       AccessMask := PROCESS_DUP_HANDLE or PROCESS_QUERY_INFORMATION;
@@ -79,8 +98,8 @@ begin
     Exit;
 
   case Action of
-    iaInjectThread, iaInjectStealty:
-      Result := InjectDummyThread(hxProcess.Handle, Action = iaInjectStealty);
+    iaInjectThread:
+      Result := InjectDummyThread(hxProcess.Handle, ThreadFlags);
 
     iaTriggerThreadPool:
       Result := TriggerThreadPool(hxProcess.Handle);

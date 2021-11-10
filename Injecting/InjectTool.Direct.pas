@@ -7,23 +7,22 @@ unit InjectTool.Direct;
 interface
 
 uses
-  NtUtils;
+  Ntapi.ntpsapi, NtUtils;
 
 // Inject a dummy thread into a suspended process to see how it behaves
 function InjectDummyThread(
   hProcess: THandle;
-  UseStealthyMode: Boolean
+  Flags: TThreadCreateFlags
 ): TNtxStatus;
 
 implementation
 
 uses
-  Ntapi.WinNt, Ntapi.ntdef, Ntapi.ntpsapi, Ntapi.Ntstatus, NtUtils.Threads,
+  Ntapi.WinNt, Ntapi.ntdef, Ntapi.Ntstatus, NtUtils.Threads,
   Ntutils.Processes.Info, NtUtils.ShellCode, NtUtils.Synchronization;
 
 function InjectDummyThread;
 var
-  ThreadFlags: TThreadCreateFlags;
   ThreadMain: Pointer;
   ThreadParam: NativeUInt;
   IsWoW64: Boolean;
@@ -49,14 +48,8 @@ begin
     ThreadParam := Cardinal(ThreadParam);
 {$ENDIF}
 
-  if UseStealthyMode then
-    ThreadFlags := THREAD_CREATE_FLAGS_SKIP_THREAD_ATTACH or
-      THREAD_CREATE_FLAGS_HIDE_FROM_DEBUGGER
-  else
-    ThreadFlags := 0;
-
   Result := NtxCreateThread(hxThread, hProcess, ThreadMain,
-    Pointer(ThreadParam), ThreadFlags);
+    Pointer(ThreadParam), Flags);
 
   if not Result.IsSuccess then
     Exit;
